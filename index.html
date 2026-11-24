@@ -83,41 +83,6 @@ details.item summary b{font:700 18px Literata,serif}details.item summary span{co
 @keyframes fall{to{transform:translateY(105vh) rotate(540deg);opacity:.8}}
 .float{position:absolute;right:20px;top:16px;font-weight:800;color:var(--ok);animation:up .8s ease-out forwards}
 @keyframes up{from{opacity:1;transform:none}to{opacity:0;transform:translateY(-28px)}}
-.game.wide{grid-column:1/-1;min-height:96px}
-.langs{display:flex;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px;gap:4px;margin-bottom:12px}
-.langs button{flex:1;border:0;background:none;border-radius:999px;min-height:44px;cursor:pointer;font-weight:700;font-size:15px;color:var(--soft)}
-.langs button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
-.langs small{font-weight:500;opacity:.75}
-.grades{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:auto}
-.grade{min-height:60px;border-radius:14px;border:1px solid var(--line);background:var(--card);cursor:pointer;font-weight:700;font-size:15px;display:grid;place-content:center;gap:2px;line-height:1.15;padding:6px 4px}
-.grade small{font-weight:500;color:var(--soft);font-size:12px}
-.grade.g1{border-color:var(--ko);color:var(--ko)}.grade.g4{border-color:var(--ok);color:var(--ok)}
-.new-tag{font-size:12px;font-weight:800;border-radius:999px;padding:2px 8px;background:var(--hl);color:#1b1a17}
-.typein{width:100%;font:700 24px Literata,serif;min-height:58px;padding:0 16px;border-radius:14px;border:2px solid var(--line);background:var(--card);color:var(--ink);text-align:center}
-.typein.ok{border-color:var(--ok)}.typein.ko{border-color:var(--ko);animation:shake .3s}
-.hint{font:700 22px/1.3 Literata,serif;letter-spacing:.14em;text-align:center;margin:0;color:var(--soft);word-break:break-word}
-.verdict{text-align:center;font-weight:700;margin:0;min-height:1.5em}
-.big-say{width:88px!important;height:88px!important;margin:6px auto 0}.big-say svg{width:34px;height:34px}
-.stats{display:grid;gap:14px}
-.panel{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px;display:grid;gap:12px;box-shadow:var(--sh)}
-.panel h2{font:800 17px "Inter Tight";margin:0}.panel p{margin:0}
-.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-.kpi b{display:block;font:800 28px/1.05 "Inter Tight";font-variant-numeric:tabular-nums}.kpi small{color:var(--soft);font-size:12px}
-.heat-wrap{overflow-x:auto}
-.heat{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,13px);grid-auto-columns:13px;gap:3px;width:max-content}
-.heat i{border-radius:3px;background:var(--line)}
-.heat i.l1{background:color-mix(in srgb,var(--hl) 35%,var(--line))}.heat i.l2{background:color-mix(in srgb,var(--hl) 70%,var(--line))}.heat i.l3{background:var(--hl)}.heat i.l4{background:#ff8a1f}.heat i.now{outline:2px solid var(--ink);outline-offset:-1px}
-.stack{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--line)}.stack i{display:block;height:100%}
-.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:var(--soft)}.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;background:var(--c);vertical-align:-1px}
-.fc{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;height:120px}
-.fc div{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px;font-size:12px;color:var(--soft);min-height:0}
-.fc div i{width:100%;max-width:34px;border-radius:6px 6px 2px 2px;background:var(--ink)}.fc div:first-child i{background:var(--hl)}
-.fc div b{color:var(--ink);font-size:13px;font-variant-numeric:tabular-nums}
-.books{width:100%;border-collapse:collapse;font-size:14px}.books td{padding:7px 0;border-bottom:1px solid var(--line);vertical-align:middle}.books td.n{text-align:right;color:var(--soft);white-space:nowrap;padding-left:10px;font-variant-numeric:tabular-nums}
-.minibar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin-top:4px}.minibar i{display:block;height:100%;background:var(--ok)}
-.code{width:100%;min-height:84px;font:12px/1.4 ui-monospace,monospace;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:10px;resize:vertical;word-break:break-all}
-.kbd{color:var(--soft);font-size:12px;text-align:center;margin:0}
-@media(max-width:420px){.grade{font-size:14px}.kpi b{font-size:24px}}
 @media(max-width:420px){.hud{grid-template-columns:1fr 1fr}.hud .pill:first-child{grid-column:1/-1}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
@@ -139,50 +104,30 @@ const ICO={
  pairs:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="8" height="11" rx="2"/><rect x="13" y="9" width="8" height="11" rx="2" fill="var(--hl)"/></svg>',
  gap:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 7h6M15 7h6M3 12h4M17 12h4M3 17h18"/><path d="M9 12h6" stroke="var(--hl)" stroke-width="4"/></svg>',
  cards:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="6" width="14" height="14" rx="2"/><path d="M8 3h11a2 2 0 0 1 2 2v11"/></svg>',
- pen:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4" stroke="var(--hl)" stroke-width="3"/></svg>',
- ear:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 9a5 5 0 0 1 10 0c0 3-3 4-3 7a3 3 0 0 1-6 .5"/><path d="M10 9.5a2 2 0 0 1 4 0" stroke="var(--hl)" stroke-width="3"/></svg>',
- chart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V4M4 20h16"/><rect x="7" y="12" width="3" height="5" fill="currentColor"/><rect x="12" y="8" width="3" height="9" fill="var(--hl)" stroke="var(--hl)"/><rect x="17" y="5" width="2" height="12" fill="currentColor"/></svg>',
- quote:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8" stroke="var(--hl)" stroke-width="3"/><path d="M8 12.5h5"/></svg>',
  list:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>',
  flame:'<svg width="26" height="26" viewBox="0 0 24 24"><path d="M12 2c1 4 6 6 6 12a6 6 0 0 1-12 0c0-3 2-5 3-6 0 2 1 3 2 3 0-3-1-6 1-9z" fill="#ff8a1f"/><path d="M12 13c1 2 3 3 3 5a3 3 0 0 1-6 0c0-1 1-2 1-3 1 1 2 0 2-2z" fill="#ffe94a"/></svg>'
 };
-const DAY=864e5,MIN=6e4,GAPS=[0,1,2,4,8,16,32],GOAL=200,NEW_DAY=15,LS='motsKobo.v2';
-let WORDS=[],ALL=[],LANG='en',PROG={},ST={xp:0,days:{},best:{},fresh:{}},offline=false,keyH=null;
+const DAY=864e5,GAPS=[0,1,2,4,8,16,32],GOAL=200,LS='motsKobo.v2';
+let WORDS=[],PROG={},ST={xp:0,days:{},best:{}},offline=false;
 const $=id=>document.getElementById(id),view=$('view');
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
-const ymd=t=>{const d=new Date(t);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
-const today=()=>ymd(Date.now());
+const today=()=>new Date().toISOString().slice(0,10);
 const fmtD=d=>{try{return new Date(d).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}catch(e){return d}};
-/* ---------- mémoire : répétition espacée (intervalle, facilité, oublis) ---------- */
-function P(w){const p=PROG[w.w];if(!p)return{s:0,e:2.5,due:0,reps:0,lapses:0,last:0};
-  if(p.s==null){const b=p.box||0;return{s:b?GAPS[b]:0,e:2.5,due:p.due||0,reps:b,lapses:0,last:0}}return p}
-const lvl=p=>!p.reps?0:p.s<1?1:p.s<3?2:p.s<7?3:p.s<21?4:p.s<60?5:6;
-const mastered=p=>p.reps>0&&p.s>=21;
-function schedule(p,g,now=Date.now()){p={...p,last:now};
-  if(g===1){p.lapses++;p.e=Math.max(1.3,p.e-.2);p.s=p.reps?Math.max(.5,p.s*.3):0;p.due=now+10*MIN;p.reps++;return p}
-  if(!p.reps||p.s<.5)p.s=[0,0,1,2,4][g];
-  else{const base=p.s+Math.max(0,(now-p.due)/DAY)/2;p.e=Math.min(3.2,Math.max(1.3,p.e+(g===2?-.15:g===4?.15:0)));p.s=g===2?base*1.2:g===3?base*p.e:base*p.e*1.3}
-  p.s=Math.min(p.s,365);p.reps++;p.due=now+p.s*DAY;return p}
-const ivl=s=>s<1?Math.max(1,Math.round(s*24))+' h':s<30?Math.round(s)+' j':s<365?Math.round(s/30)+' mois':'1 an';
+const P=w=>PROG[w.w]||{box:0,due:0};
 const mean=w=>w.i||(w.t&&w.t[0]?w.t[0][1]:'?');
 const ctxHTML=(w,blank)=>w.c?esc(w.c).replace(/&lt;&lt;(.*?)&gt;&gt;/,(m,x)=>blank?'<span class="blank">&nbsp;</span>':'<mark>'+x+'</mark>'):'<i style="color:var(--soft)">Phrase pas encore retrouvée.</i>';
 const dots=b=>'<span class="dots">'+[1,2,3,4,5,6].map(i=>'<i class="'+(i<=b?'on':'')+'"></i>').join('')+'</span>';
-function speak(t){try{const u=new SpeechSynthesisUtterance(t);u.lang=LANG==='fr'?'fr-FR':'en-GB';u.rate=.9;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){}}
+function speak(t){try{const u=new SpeechSynthesisUtterance(t);u.lang='en-GB';u.rate=.9;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){}}
 /* ---------- stockage : Kobo d'abord, copie locale en secours ---------- */
 function local(k,v){try{if(v===undefined)return JSON.parse(localStorage.getItem(LS+k)||'null');localStorage.setItem(LS+k,JSON.stringify(v))}catch(e){return null}}
 function setOffline(b){offline=b;$('banner').innerHTML=b?'<div class="banner">Hors connexion : tu joues avec tes mots enregistrés.</div>':''}
 const saveStats=()=>local('stats',ST);
 const send=()=>{};
-const saveProg=()=>local('prog',PROG);
-function grade(w,g){const p=P(w);if(!p.reps){ST.fresh[today()]=(ST.fresh[today()]||0)+1;saveStats()}PROG[w.w]=schedule(p,g);saveProg()}
-/* dans les jeux : une bonne réponse compte comme « Bien » si le mot était à revoir ; une erreur le fait revenir tout de suite */
-function setProg(w,good){const p=P(w),now=Date.now();if(good){if(p.due<=now)grade(w,3)}else{PROG[w.w]={...p,s:p.s*.5,due:now,last:now,lapses:p.lapses+1,e:Math.max(1.3,p.e-.1)};saveProg()}}
-function dueQueue(){const now=Date.now(),rev=WORDS.filter(w=>{const p=P(w);return p.reps&&p.due<=now}).sort((a,b)=>P(a).due-P(b).due);
-  const fresh=WORDS.filter(w=>!P(w).reps).sort((a,b)=>String(b.d||'').localeCompare(String(a.d||''))).slice(0,Math.max(0,NEW_DAY-(ST.fresh[today()]||0)));return[...rev,...fresh]}
+function setProg(w,good){const p=P(w),b=good?Math.min(p.box+1,6):0;PROG[w.w]={box:b,due:good?Date.now()+GAPS[b]*DAY:Date.now()};local('prog',PROG)}
 /* ---------- XP, niveaux, série ---------- */
 const level=xp=>Math.floor(Math.sqrt(xp/40))+1, lvlXP=l=>40*(l-1)**2;
-function streak(){let n=0;const d=new Date();if(!ST.days[today()])d.setDate(d.getDate()-1);while(ST.days[ymd(d)]){n++;d.setDate(d.getDate()-1)}return n}
+function streak(){let n=0,d=new Date();if(!ST.days[today()])d=new Date(Date.now()-DAY);while(ST.days[d.toISOString().slice(0,10)]){n++;d=new Date(d-DAY)}return n}
 function gain(n,el){const before=level(ST.xp);ST.xp+=n;ST.days[today()]=(ST.days[today()]||0)+n;saveStats();hud();
   if(el){const f=document.createElement('span');f.className='float';f.textContent='+'+n;el.appendChild(f);setTimeout(()=>f.remove(),800)}
   if(level(ST.xp)>before)confetti('Niveau '+level(ST.xp)+' !')}
@@ -194,33 +139,18 @@ function hud(){const xp=ST.xp,l=level(xp),a=lvlXP(l),b=lvlXP(l+1),pc=Math.round(
    '<div class="pill">'+ICO.flame+'<div><b>'+streak()+'</b><small>jour'+(streak()>1?'s':'')+' de suite</small></div></div>'+
    '<div class="pill"><svg class="ring" viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" fill="none" stroke="var(--line)" stroke-width="5"/><circle cx="18" cy="18" r="15" fill="none" stroke="var(--ok)" stroke-width="5" stroke-linecap="round" stroke-dasharray="'+(C*g)+' '+C+'" transform="rotate(-90 18 18)"/></svg><div><b>'+Math.min(dt,GOAL)+'</b><small>/ '+GOAL+' XP du jour</small></div></div>'}
 /* ---------- accueil ---------- */
-function home(){$('home').hidden=true;keyH=null;hud();const due=dueQueue().length,mast=WORDS.filter(w=>mastered(P(w))).length;
-  const tiles=[['cards','big',ICO.cards,'Révision du jour',due?'Tes mots reviennent juste avant que tu les oublies. Quelques minutes suffisent.':'Tout est à jour. Reviens demain, ou joue pour le plaisir.',due?due+' à revoir':'À jour'],
-   ['flash','',ICO.bolt,'Défi éclair','60 secondes, un max de bonnes réponses.',ST.best.flash?'Record '+ST.best.flash:''],
+function home(){$('home').hidden=true;hud();const due=WORDS.filter(w=>P(w).due<=Date.now()).length;
+  const tiles=[['flash','big',ICO.bolt,'Défi éclair','60 secondes, un max de bonnes réponses. Les séries font monter le multiplicateur.',ST.best.flash?'Record '+ST.best.flash:''],
    ['pairs','',ICO.pairs,'Paires','Associe 5 mots à leur traduction, le plus vite possible.',ST.best.pairs?'Record '+ST.best.pairs+' s':''],
    ['cloze','',ICO.gap,'Phrase à trous','Retrouve le mot dans la phrase de ton livre.',''],
-   ['write','',ICO.pen,'Écris-le',(LANG==='fr'?'Retrouve le mot à partir de sa définition et tape-le.':'Retrouve le mot anglais et tape-le, sans aide.'),''],
-   ...('speechSynthesis' in window?[['dict','',ICO.ear,'Dictée','Écoute le mot, écris-le sans faute.','']]:[]),
-   ['stats','',ICO.chart,'Progrès','Ton calendrier, tes mots maîtrisés et la suite.',mast?mast+' maîtrisé'+(mast>1?'s':''):''],
-   ['list','',ICO.list,'Mes mots',WORDS.length+' mots '+(LANG==='fr'?'français':'anglais')+' de tes livres, avec recherche.',''],
-   ['notes','',ICO.quote,'Mes annotations','Tous tes passages surlignés et tes notes, livre par livre.','']];
-  if(tiles.filter(t=>!t[1]).length%2)tiles[tiles.length-1][1]='wide';
-  const nEn=ALL.filter(w=>w._l==='en').length,nFr=ALL.length-nEn;
-  view.innerHTML=(nEn&&nFr?'<div class="langs" role="group" aria-label="Langue des mots"><button data-l="en" aria-pressed="'+(LANG==='en')+'">Anglais <small>'+nEn+'</small></button><button data-l="fr" aria-pressed="'+(LANG==='fr')+'">Français <small>'+nFr+'</small></button></div>':'')+'<div class="games">'+tiles.map(t=>'<button class="game '+t[1]+'" data-g="'+t[0]+'">'+t[2]+'<b>'+t[3]+'</b><small>'+t[4]+'</small>'+(t[5]?'<span class="tag">'+t[5]+'</span>':'')+'</button>').join('')+'</div>';
-  view.querySelectorAll('.game').forEach(b=>b.onclick=()=>GAMES[b.dataset.g]());
-  view.querySelectorAll('.langs button').forEach(b=>b.onclick=()=>{setLang(b.dataset.l);home()});}
-/* ---------- deux listes : anglais et français ---------- */
-const FRW=new Set('le la les un une des du de et est que qui dans pour pas ne il elle je nous vous ils elles sur au aux avec ce cette ces son sa ses mais comme tout était avait sont été lui leur où'.split(' '));
-const ENW=new Set('the an and is was that which in for not he she it i we you they at with this his her but as all were had are been of to from by would there their what'.split(' '));
-function langOf(t){const ws=String(t).toLowerCase().match(/[a-zàâçéèêëîïôûùüÿœ’']+/g)||[];let f=0,e=0;for(const w of ws){if(FRW.has(w))f++;if(ENW.has(w))e++}if(/[àâçéèêëîïôûùœ]/.test(t))f+=.5;return f>e?'fr':e>f?'en':''}
-function tagLangs(ws){const byBook={};for(const w of ws)(byBook[w.b]=byBook[w.b]||[]).push(String(w.c||'').replace(/<<|>>/g,''));
-  const bl={};for(const[b,cs]of Object.entries(byBook))bl[b]=langOf(cs.join(' '));
-  for(const w of ws){const l=String(w.l||w.lang||'').slice(0,2).toLowerCase();w._l=l==='fr'||l==='en'?l:bl[w.b]||langOf(w.w)||'en'}return ws}
-function setLang(l){LANG=l==='fr'?'fr':'en';local('lang',LANG);WORDS=ALL.filter(w=>w._l===LANG);if(!WORDS.length&&ALL.length){LANG=ALL[0]._l;WORDS=ALL.filter(w=>w._l===LANG)}}
-function inGame(){$('home').hidden=false;keyH=null;try{window.scrollTo(0,0)}catch(e){}}
+   ['cards','',ICO.cards,'Fiches','Révision espacée : les mots ratés reviennent plus souvent.',due?due+' à revoir':''],
+   ['list','',ICO.list,'Mes mots',WORDS.length+' mots de tes livres, avec recherche.','']];
+  view.innerHTML='<div class="games">'+tiles.map(t=>'<button class="game '+t[1]+'" data-g="'+t[0]+'">'+t[2]+'<b>'+t[3]+'</b><small>'+t[4]+'</small>'+(t[5]?'<span class="tag">'+t[5]+'</span>':'')+'</button>').join('')+'</div>';
+  view.querySelectorAll('.game').forEach(b=>b.onclick=()=>GAMES[b.dataset.g]());}
+function inGame(){$('home').hidden=false;try{window.scrollTo(0,0)}catch(e){}}
 $('home').onclick=()=>{stopTimers();home()};
 let timers=[];const stopTimers=()=>{timers.forEach(clearInterval);timers=[]};
-const weak=()=>{const a=shuffle(WORDS);a.sort((x,y)=>lvl(P(x))-lvl(P(y)));return a};
+const weak=()=>{const a=shuffle(WORDS);a.sort((x,y)=>P(x).box-P(y).box);return a};
 const pick=(n=15)=>{const a=weak();return a[Math.floor(Math.random()*Math.min(n,a.length))]};
 function backHTML(w){return '<div class="back"><p class="ici"><small>Sens ici</small>'+esc(mean(w))+'</p>'+(w.t&&w.t.length?'<ul class="senses">'+w.t.map(t=>'<li><i>'+esc(t[0])+'</i> · '+esc(t[1])+'</li>').join('')+'</ul>':'')+'</div>'}
 /* ---------- Défi éclair ---------- */
@@ -228,7 +158,7 @@ function flash(){inGame();let left=60,score=0,combo=0,missed=[],t0=Date.now(),cu
   const mult=()=>combo>=6?3:combo>=3?2:1;
   function q(){cur=pick(25);const dir=Math.random()<.6?'en':'fr';const others=shuffle(WORDS.filter(x=>x.w.toLowerCase()!==cur.w.toLowerCase()&&mean(x)!==mean(cur))).slice(0,3);const opts=shuffle([cur,...others]);
     view.innerHTML='<div class="card"><div class="timer"><i id="tb" style="width:'+(left/60*100)+'%"></i></div><div class="meta"><span id="tl">'+left+' s</span><span>'+(mult()>1?'<span class="combo">x'+mult()+'</span> ':'')+'<b id="sc">'+score+'</b> pts</span></div>'+
-     (dir==='en'?'<p class="word">'+esc(cur.w)+'</p><p class="ctx" style="color:var(--soft);font-size:15px">Quel est le sens ?</p>':'<p class="fr-q">'+esc(mean(cur))+'</p><p class="ctx" style="color:var(--soft);font-size:15px">'+(LANG==='fr'?'Quel mot ?':'Quel mot anglais ?')+'</p>')+
+     (dir==='en'?'<p class="word">'+esc(cur.w)+'</p><p class="ctx" style="color:var(--soft);font-size:15px">Quel est le sens ?</p>':'<p class="fr-q">'+esc(mean(cur))+'</p><p class="ctx" style="color:var(--soft);font-size:15px">Quel mot anglais ?</p>')+
      '<div class="opts">'+opts.map((o,i)=>'<button class="opt" data-i="'+i+'">'+esc(dir==='en'?mean(o):o.w)+'</button>').join('')+'</div></div>';
     view.querySelectorAll('.opt').forEach(b=>b.onclick=()=>{if(view.querySelector('.opt.right'))return;const good=opts[+b.dataset.i]===cur;
       view.querySelectorAll('.opt').forEach(x=>{if(opts[+x.dataset.i]===cur)x.classList.add('right')});
@@ -259,95 +189,30 @@ function pairs(){inGame();const set=[];for(const w of weak()){if(set.length>=5)b
 /* ---------- Phrase à trous ---------- */
 function cloze(){inGame();const pool=weak().filter(w=>w.c);if(pool.length<4)return list();const w=pool[Math.floor(Math.random()*Math.min(12,pool.length))];
   const others=shuffle(pool.filter(x=>x.w.toLowerCase()!==w.w.toLowerCase())).slice(0,3),opts=shuffle([w,...others]);
-  view.innerHTML='<div class="card"><div class="meta"><span>'+esc(w.b)+'</span>'+dots(lvl(P(w)))+'</div><p class="ici"><small>Quel mot manque ? Indice : '+esc(mean(w))+'</small></p><p class="ctx" id="cx">'+ctxHTML(w,true)+'</p><div class="opts">'+opts.map((o,i)=>'<button class="opt" data-i="'+i+'">'+esc(o.w)+'</button>').join('')+'</div><div id="af"></div></div>';
+  view.innerHTML='<div class="card"><div class="meta"><span>'+esc(w.b)+'</span>'+dots(P(w).box)+'</div><p class="ici"><small>Quel mot manque ? Indice : '+esc(mean(w))+'</small></p><p class="ctx" id="cx">'+ctxHTML(w,true)+'</p><div class="opts">'+opts.map((o,i)=>'<button class="opt" data-i="'+i+'">'+esc(o.w)+'</button>').join('')+'</div><div id="af"></div></div>';
   view.querySelectorAll('.opt').forEach(b=>b.onclick=()=>{if(view.querySelector('.opt.right'))return;const good=opts[+b.dataset.i]===w;
     view.querySelectorAll('.opt').forEach(x=>{if(opts[+x.dataset.i]===w)x.classList.add('right')});if(!good)b.classList.add('wrong');else gain(10,view.querySelector('.card'));
     setProg(w,good);$('cx').innerHTML=ctxHTML(w);speak(w.w);
     $('af').innerHTML=backHTML(w)+'<div class="row" style="margin-top:12px"><button class="btn main" id="nx">Suivante</button></div>';$('nx').onclick=cloze})}
 /* ---------- Fiches (révision espacée) ---------- */
 let queue=[];
-function cards(){inGame();queue=dueQueue();card()}
+function cards(){inGame();queue=shuffle(WORDS.filter(w=>P(w).due<=Date.now())).sort((a,b)=>P(a).box-P(b).box);card()}
 function card(flipped){
-  if(!queue.length){view.innerHTML='<div class="card center"><p class="big-n">✓</p><p>Tout est revu pour aujourd’hui.</p><p style="color:var(--soft);margin:0">'+nextDue()+'</p><div class="row"><button class="btn" id="hm">Accueil</button><button class="btn main" id="mo">10 fiches de plus</button></div></div>';$('hm').onclick=home;$('mo').onclick=()=>{queue=weak().slice(0,10);card()};return}
-  const w=queue[0],p=P(w);
-  view.innerHTML='<div class="card"><div class="meta"><span>'+esc(w.b)+' · '+fmtD(w.d)+'</span>'+(p.reps?dots(lvl(p)):'<span class="new-tag">Nouveau</span>')+'</div><p class="word">'+esc(w.w)+' <button class="say" aria-label="Écouter">'+ICO.say+'</button></p><p class="ctx">'+ctxHTML(w)+'</p>'+
-   (flipped?backHTML(w)+'<div class="grades">'+[[1,'Encore'],[2,'Difficile'],[3,'Bien'],[4,'Facile']].map(([g,t])=>'<button class="grade g'+g+'" data-g="'+g+'">'+t+'<small>'+(g===1?'10 min':ivl(schedule(p,g).s))+'</small></button>').join('')+'</div><p class="kbd">Clavier : 1 à 4</p>':'<div class="row"><button class="btn main" id="sh">Voir la traduction</button></div><p class="kbd">Clavier : espace</p>')+
+  if(!queue.length){view.innerHTML='<div class="card center"><p class="big-n">✓</p><p>Tout est revu pour aujourd’hui.</p><div class="row"><button class="btn" id="hm">Accueil</button><button class="btn main" id="mo">10 fiches de plus</button></div></div>';$('hm').onclick=home;$('mo').onclick=()=>{queue=weak().slice(0,10);card()};return}
+  const w=queue[0];
+  view.innerHTML='<div class="card"><div class="meta"><span>'+esc(w.b)+' · '+fmtD(w.d)+'</span>'+dots(P(w).box)+'</div><p class="word">'+esc(w.w)+' <button class="say" aria-label="Écouter">'+ICO.say+'</button></p><p class="ctx">'+ctxHTML(w)+'</p>'+
+   (flipped?backHTML(w)+'<div class="row"><button class="btn bad" id="no">Je ne savais pas</button><button class="btn good" id="yes">Je savais</button></div>':'<div class="row"><button class="btn main" id="sh">Voir la traduction</button></div>')+
    '<small style="color:var(--soft)">'+queue.length+' fiche'+(queue.length>1?'s':'')+'</small></div>';
   view.querySelector('.say').onclick=()=>speak(w.w);
-  if(!flipped){$('sh').onclick=()=>card(true);keyH=e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();card(true)}};return}
-  const go=g=>{grade(w,g);gain(g===1?1:5,view.querySelector('.card'));queue.shift();if(g===1)queue.splice(Math.min(queue.length,3),0,w);card()};
-  view.querySelectorAll('.grade').forEach(b=>b.onclick=()=>go(+b.dataset.g));
-  keyH=e=>{if(/^[1-4]$/.test(e.key))go(+e.key)}}
-function nextDue(){const ds=WORDS.map(P).filter(p=>p.reps&&p.due>Date.now()).map(p=>p.due);if(!ds.length)return'';const t=Math.min(...ds),h=(t-Date.now())/36e5;
-  return'Prochaine fiche '+(h<1?'dans moins d’une heure':h<24?'dans '+Math.round(h)+' h':'le '+new Date(t).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}))+'.'}
-/* ---------- Écris-le et Dictée ---------- */
-const norm=s=>String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[’']/g,"'").replace(/[^a-z0-9']+/g,' ').trim();
-function lev(a,b){let r=Array.from({length:b.length+1},(_,j)=>j);for(let i=1;i<=a.length;i++){const n=[i];for(let j=1;j<=b.length;j++)n[j]=Math.min(r[j]+1,n[j-1]+1,r[j-1]+(a[i-1]===b[j-1]?0:1));r=n}return r[b.length]}
-const bare=s=>s.replace(/^to /,'');
-function check(input,w){const a=bare(norm(input)),b=bare(norm(w.w));if(!a)return 0;if(a===b)return 2;return b.length>4&&lev(a,b)<=1?1:0}
-function typeGame(mode){inGame();const dict=mode==='dict',pool=weak(),w=pool[Math.floor(Math.random()*Math.min(15,pool.length))];let shown=0,tries=0,done=false;
-  const letters=[...w.w],nL=letters.filter(c=>/\p{L}/u.test(c)).length;
-  const mask=()=>{let k=0;return letters.map(c=>/\p{L}/u.test(c)?(k++<shown?c:'_'):c).join(' ')};
-  view.innerHTML='<div class="card"><div class="meta"><span>'+(dict?'Dictée':'Écris-le')+' · '+esc(w.b)+'</span>'+dots(lvl(P(w)))+'</div>'+
-   (dict?'<button class="say big-say" id="sp" aria-label="Réécouter le mot">'+ICO.say+'</button><p class="ici center"><small>Écoute, puis écris le mot</small></p>':'<p class="fr-q">'+esc(mean(w))+'</p><p class="ctx">'+ctxHTML(w,true)+'</p>')+
-   '<p class="hint" id="hn" aria-label="'+nL+' lettres">'+esc(mask())+'</p><form id="fm"><input class="typein" id="in" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Ta réponse" enterkeyhint="done"></form><p class="verdict" id="vd" aria-live="polite"></p><div id="af"></div>'+
-   '<div class="row" id="ctl"><button class="btn" id="hb" type="button">Une lettre</button><button class="btn main" id="ok" type="button">Valider</button></div></div>';
-  const inp=$('in'),vd=$('vd'),cardEl=view.querySelector('.card');
-  if(dict){const s=()=>speak(w.w);$('sp').onclick=s;setTimeout(s,300)}
-  setTimeout(()=>{try{inp.focus()}catch(e){}},60);
-  $('hb').onclick=()=>{if(done)return;shown++;$('hn').textContent=mask();if(shown>=nL)finish(0);else inp.focus()};
-  function finish(r){done=true;inp.disabled=true;inp.classList.remove('ko');inp.classList.add(r?'ok':'ko');if(!r)inp.value=w.w;
-    vd.textContent=r===2?'Exact !':r===1?'Presque ! Ça s’écrit « '+w.w+' »':'C’était « '+w.w+' »';vd.style.color=r?'var(--ok)':'var(--ko)';
-    const pts=r?Math.max(2,(dict?15:12)-shown*3-tries*3):0;if(pts)gain(pts,cardEl);setProg(w,r>0);speak(w.w);
-    $('ctl').hidden=true;$('af').innerHTML=(dict||w.c?'<p class="ctx" style="margin-bottom:10px">'+ctxHTML(w)+'</p>':'')+backHTML(w)+'<div class="row" style="margin-top:12px"><button class="btn main" id="nx">Suivant</button></div>';
-    $('nx').onclick=()=>typeGame(mode);keyH=e=>{if(e.key==='Enter'){e.preventDefault();typeGame(mode)}};try{$('nx').focus()}catch(e){}}
-  $('fm').onsubmit=e=>{e.preventDefault();if(done||!inp.value.trim())return;const r=check(inp.value,w);if(r)return finish(r);
-    tries++;inp.classList.remove('ko');void inp.offsetWidth;inp.classList.add('ko');if(tries>=3)return finish(0);vd.style.color='var(--ko)';vd.textContent=tries===1?'Pas tout à fait, réessaie.':'Encore raté. Une lettre peut t’aider.'};
-  $('ok').onclick=()=>$('fm').requestSubmit()}
-/* ---------- Progrès ---------- */
-function stats(){inGame();const ps=WORDS.map(P),n=WORDS.length||1,news=ps.filter(p=>!p.reps).length,mast=ps.filter(mastered).length,learn=WORDS.length-news-mast;
-  const dayEnd=i=>{const d=new Date();d.setHours(23,59,59,999);d.setDate(d.getDate()+i);return d.getTime()};
-  const fc=[...Array(7)].map((_,i)=>({n:ps.filter(p=>p.reps&&p.due<=dayEnd(i)&&(i===0||p.due>dayEnd(i-1))).length,l:i?new Date(dayEnd(i)).toLocaleDateString('fr-FR',{weekday:'short'}).replace('.',''):'auj.'}));
-  const fmax=Math.max(1,...fc.map(f=>f.n));
-  const start=new Date();start.setHours(12,0,0,0);start.setDate(start.getDate()-((start.getDay()+6)%7)-7*19);
-  const cells=[];for(const d=new Date(start);d<=new Date();d.setDate(d.getDate()+1)){const k=ymd(d),x=ST.days[k]||0;cells.push('<i class="'+(x?x<30?'l1':x<100?'l2':x<GOAL?'l3':'l4':'')+(k===today()?' now':'')+'" title="'+fmtD(k)+' · '+x+' XP"></i>')}
-  const active=Object.values(ST.days).filter(Boolean).length;
-  const books=Object.entries(WORDS.reduce((m,w,i)=>{const b=w.b||'Sans titre';(m[b]=m[b]||{n:0,m:0}).n++;if(mastered(ps[i]))m[b].m++;return m},{})).sort((a,b)=>b[1].n-a[1].n).slice(0,8);
-  const hard=WORDS.map((w,i)=>[w,ps[i]]).filter(x=>x[1].lapses>0).sort((a,b)=>b[1].lapses-a[1].lapses).slice(0,5);
-  const pc=x=>(x/n*100).toFixed(1)+'%';
-  view.innerHTML='<div class="stats">'+
-   '<section class="panel"><h2>Ta mémoire</h2><div class="kpis"><div class="kpi"><b>'+mast+'</b><small>maîtrisés (3 semaines et plus)</small></div><div class="kpi"><b>'+learn+'</b><small>en cours</small></div><div class="kpi"><b>'+news+'</b><small>jamais vus</small></div></div>'+
-   '<div class="stack" role="img" aria-label="'+mast+' maîtrisés, '+learn+' en cours, '+news+' nouveaux"><i style="width:'+pc(mast)+';background:var(--ok)"></i><i style="width:'+pc(learn)+';background:var(--hl)"></i></div>'+
-   '<div class="legend"><span style="--c:var(--ok)">Maîtrisés</span><span style="--c:var(--hl)">En cours</span><span style="--c:var(--line)">Nouveaux</span></div></section>'+
-   '<section class="panel"><h2>Révisions des 7 prochains jours</h2><div class="fc">'+fc.map(f=>'<div><b>'+f.n+'</b><i style="height:'+Math.max(2,f.n/fmax*80)+'px"></i>'+esc(f.l)+'</div>').join('')+'</div><p style="color:var(--soft);font-size:13px">Plus 15 nouveaux mots par jour au maximum, pris parmi tes derniers surlignages.</p></section>'+
-   '<section class="panel"><h2>Ton calendrier</h2><div class="heat-wrap"><div class="heat">'+cells.join('')+'</div></div><p style="color:var(--soft);font-size:13px">'+active+' jour'+(active>1?'s':'')+' de jeu · '+ST.xp+' XP au total · série actuelle '+streak()+' j</p></section>'+
-   (books.length?'<section class="panel"><h2>Par livre</h2><table class="books">'+books.map(([b,v])=>'<tr><td>'+esc(b)+'<div class="minibar"><i style="width:'+(v.m/v.n*100)+'%"></i></div></td><td class="n">'+v.m+' / '+v.n+'</td></tr>').join('')+'</table></section>':'')+
-   (hard.length?'<section class="panel"><h2>Tes mots les plus coriaces</h2><ul class="missed">'+hard.map(([w,p])=>'<li><b>'+esc(w.w)+'</b> · '+esc(mean(w))+' <span style="color:var(--soft)">· oublié '+p.lapses+' fois</span></li>').join('')+'</ul><div class="row"><button class="btn main" id="drill">Réviser ces mots</button></div></section>':'')+
-   '<section class="panel"><h2>Sauvegarde</h2><p style="color:var(--soft);font-size:14px">Ta progression reste sur cet appareil. Copie ce code pour la garder en lieu sûr ou la reprendre sur un autre téléphone.</p><div class="row"><button class="btn" id="cp">Copier mon code</button><button class="btn" id="im">Coller un code</button></div><textarea class="code" id="cd" hidden aria-label="Code de sauvegarde"></textarea><p class="verdict" id="bk" aria-live="polite"></p></section>'+
-   '</div>';
-  const dr=$('drill');if(dr)dr.onclick=()=>{inGame();queue=hard.map(x=>x[0]);card()};
-  const cd=$('cd'),bk=$('bk');
-  $('cp').onclick=async()=>{const code=await exportCode();cd.hidden=false;cd.value=code;cd.readOnly=true;
-    try{await navigator.clipboard.writeText(code);bk.style.color='var(--ok)';bk.textContent='Code copié. Colle-le dans tes notes.'}catch(e){cd.select();bk.style.color='var(--soft)';bk.textContent='Sélectionne le code et copie-le.'}};
-  $('im').onclick=()=>{if(cd.hidden||cd.readOnly){cd.hidden=false;cd.readOnly=false;cd.value='';cd.placeholder='Colle ici ton code MK1…';cd.focus();$('im').textContent='Importer ce code';return}
-    importCode(cd.value.trim()).then(k=>{bk.style.color='var(--ok)';bk.textContent='Progression fusionnée : '+k+' mot'+(k>1?'s':'')+' mis à jour.';hud();setTimeout(()=>{if(document.getElementById('bk')===bk)stats()},1400)}).catch(()=>{bk.style.color='var(--ko)';bk.textContent='Ce code ne fonctionne pas. Vérifie qu’il est complet.'})}}
-const gz=async(u8,mode)=>new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(mode?new CompressionStream('gzip'):new DecompressionStream('gzip'))).arrayBuffer());
-async function exportCode(){const raw=enc.encode(JSON.stringify({v:1,prog:PROG,st:ST}));let b=raw,z='0';try{b=await gz(raw,1);z='1'}catch(e){}
-  let s='';for(let i=0;i<b.length;i+=8192)s+=String.fromCharCode(...b.subarray(i,i+8192));return'MK1'+z+'.'+btoa(s)}
-async function importCode(code){const m=code.match(/^MK1([01])\.([A-Za-z0-9+/=\s]+)$/);if(!m)throw 0;let b=b64(m[2].replace(/\s/g,''));if(m[1]==='1')b=await gz(b,0);
-  const d=JSON.parse(new TextDecoder().decode(b));if(!d||d.v!==1)throw 0;let k=0;
-  for(const[w,p]of Object.entries(obj(d.prog))){const mine=PROG[w];if(!mine||(p.last||0)>(mine.last||0)||(mine.s==null&&p.s!=null)){PROG[w]=p;k++}}
-  const s=obj(d.st);ST.xp=Math.max(ST.xp,s.xp||0);for(const[x,v]of Object.entries(obj(s.days)))ST.days[x]=Math.max(ST.days[x]||0,v);
-  for(const[x,v]of Object.entries(obj(s.fresh)))ST.fresh[x]=Math.max(ST.fresh[x]||0,v);const bs=obj(s.best);
-  if(bs.flash)ST.best.flash=Math.max(ST.best.flash||0,bs.flash);if(bs.pairs)ST.best.pairs=Math.min(ST.best.pairs||1e9,bs.pairs);
-  saveProg();saveStats();return k}
+  if(!flipped){$('sh').onclick=()=>card(true);return}
+  $('yes').onclick=()=>{setProg(w,true);gain(5,view.querySelector('.card'));queue.shift();card()};
+  $('no').onclick=()=>{setProg(w,false);queue.push(queue.shift());card()}}
 /* ---------- Liste ---------- */
 function list(){inGame();view.innerHTML='<input class="search" id="q" type="search" placeholder="Chercher un mot ou une traduction"><div id="it"></div>';
   const draw=s=>{s=s.toLowerCase();const r=WORDS.filter(w=>!s||(w.w+' '+mean(w)+' '+(w.t||[]).map(t=>t[1]).join(' ')).toLowerCase().includes(s));
-    $('it').innerHTML=r.map(w=>'<details class="item"><summary><b>'+esc(w.w)+'</b><span>'+esc(mean(w))+'<br>'+dots(lvl(P(w)))+'</span></summary><p class="ctx" style="margin:10px 0">'+ctxHTML(w)+'</p>'+backHTML(w)+'<p class="meta">'+esc(w.b)+' · '+fmtD(w.d)+'</p></details>').join('')||'<p style="color:var(--soft)">Aucun mot.</p>'};
+    $('it').innerHTML=r.map(w=>'<details class="item"><summary><b>'+esc(w.w)+'</b><span>'+esc(mean(w))+'<br>'+dots(P(w).box)+'</span></summary><p class="ctx" style="margin:10px 0">'+ctxHTML(w)+'</p>'+backHTML(w)+'<p class="meta">'+esc(w.b)+' · '+fmtD(w.d)+'</p></details>').join('')||'<p style="color:var(--soft)">Aucun mot.</p>'};
   $('q').oninput=e=>draw(e.target.value);draw('')}
-const GAMES={flash,pairs,cloze,cards,list,stats,notes:()=>{location.href='annotations.html'},write:()=>typeGame('write'),dict:()=>typeGame('dict')};
-document.addEventListener('keydown',e=>{const t=e.target&&e.target.tagName;if(keyH&&t!=='INPUT'&&t!=='TEXTAREA'&&!e.metaKey&&!e.ctrlKey)keyH(e)});
+const GAMES={flash,pairs,cloze,cards,list};
 /* ---------- démarrage ---------- */
 const obj=x=>x&&!Array.isArray(x)&&typeof x==='object'?x:{};
 function source(){const h=location.hostname,m=h.match(/^([^.]+)\.github\.io$/i),repo=location.pathname.split('/').filter(Boolean)[0];
@@ -365,26 +230,21 @@ async function decrypt(box,keyStr){const K=b64u(keyStr),N=b64(box.n),C=b64(box.c
   const n=Math.ceil(C.length/32),ks=await Promise.all(Array.from({length:n},(_,i)=>hmac(Ke,cat(N,new Uint8Array([i>>>24&255,i>>>16&255,i>>>8&255,i&255])))));
   const P=new Uint8Array(C.length);for(let i=0;i<C.length;i++)P[i]=C[i]^ks[i>>5][i&31];
   const txt=P[0]===0x1f&&P[1]===0x8b?await new Response(new Blob([P]).stream().pipeThrough(new DecompressionStream('gzip'))).text():new TextDecoder().decode(P);return JSON.parse(txt)}
-let badKey=false,why='',boxInfo='';
-async function fetchWords(){const key=getKey();if(!key){badKey=true;why='nokey';throw 0}
+let badKey=false;
+async function fetchWords(){const key=getKey();if(!key){badKey=true;throw 0}
   const u=source(),api=u.startsWith('http');let r=await fetch(u+(api?'?t='+Date.now():''),{cache:'no-store',headers:api?{Accept:'application/vnd.github.raw+json'}:{}});
   if(!r.ok)r=await fetch('words.enc?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw 0;
-  const box=await r.json();boxInfo='clé de '+key.length+' caractères · fichier de '+Math.round((box.c||'').length*3/4/1024)+' Ko';
-  try{const d=await decrypt(box,key);local('key',key);return d}catch(e){badKey=true;why=e&&e.message==='cle'?'mac':'decode:'+(e&&(e.name||e.message)||e);throw e}}
-function privateMsg(){
-  if(why==='nokey')return'Il manque ta clé dans l’adresse de la page. Ouvre l’appli en scannant le QR code de ta Kobo (Outils, Mots Kobo, Ouvrir l’appli sur mon téléphone). Depuis l’icône de l’écran d’accueil, la clé n’est pas transmise la première fois.';
-  if(why==='mac')return'Ta clé ne correspond pas aux mots envoyés par ta Kobo : la Kobo a sans doute changé de clé sans renvoyer tes mots. Rouvre le menu Mots Kobo sur la liseuse pour relancer un envoi, puis scanne à nouveau le QR code.<br><small style="color:var(--soft)">Diagnostic : clé refusée · '+esc(boxInfo)+'</small>';
-  return'Tes mots n’ont pas pu être déchiffrés sur ce téléphone.<br><small style="color:var(--soft)">Diagnostic : '+esc(why)+' · '+esc(boxInfo)+'</small>'}
+  const box=await r.json();try{const d=await decrypt(box,key);local('key',key);return d}catch(e){badKey=true;throw e}}
 let lastCount=(local('words')||[]).length;
 async function load(quiet){
-  PROG=obj(local('prog'));const ls=obj(local('stats'));ST={xp:ls.xp||0,days:obj(ls.days),best:obj(ls.best),fresh:obj(ls.fresh)};
+  PROG=obj(local('prog'));const ls=obj(local('stats'));ST={xp:ls.xp||0,days:obj(ls.days),best:obj(ls.best)};
   badKey=false;try{const d=await fetchWords();const ws=(d.words||[]).filter(w=>w&&w.w);if(!ws.length&&WORDS.length)throw 0;
-    const added=lastCount&&ws.length>lastCount?ws.length-lastCount:0;ALL=tagLangs(ws);setLang(local('lang')||LANG);lastCount=ws.length;local('words',ws);setOffline(false);
+    const added=lastCount&&ws.length>lastCount?ws.length-lastCount:0;WORDS=ws;lastCount=ws.length;local('words',WORDS);setOffline(false);
     if(d.updated)$('foot').textContent='Mots mis à jour le '+new Date(d.updated).toLocaleString('fr-FR',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'})+' depuis ta Kobo. Ta progression est gardée sur cet appareil.';
     if(added)confetti(added+' nouveau'+(added>1?'x':'')+' mot'+(added>1?'s':'')+' !')}
-  catch(e){if(!ALL.length&&!badKey){ALL=tagLangs(local('words')||[]);setLang(local('lang')||LANG);lastCount=ALL.length}if(!badKey||WORDS.length)setOffline(true)}
+  catch(e){if(!WORDS.length&&!badKey){WORDS=local('words')||[];lastCount=WORDS.length}if(!badKey||WORDS.length)setOffline(true)}
   if(quiet&&!$('home').hidden)return;
-  if(!WORDS.length){view.innerHTML='<div class="card center"><p style="margin:auto">'+(badKey?privateMsg():'Tes mots arrivent : la toute première fois, GitHub met une minute à tout mettre en ligne. Rouvre l’appli dans un instant.')+'</p></div>';hud();return}
+  if(!WORDS.length){view.innerHTML='<div class="card center"><p style="margin:auto">'+(badKey?'Cette appli est privée. Ouvre-la en scannant le QR code de ta Kobo (Outils, Mots Kobo, Ouvrir l’appli sur mon téléphone).':'Tes mots arrivent : la toute première fois, GitHub met une minute à tout mettre en ligne. Rouvre l’appli dans un instant.')+'</p></div>';hud();return}
   home()}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')load(true)});
 if('serviceWorker' in navigator){try{navigator.serviceWorker.register('sw.js').catch(()=>{})}catch(e){}}
