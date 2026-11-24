@@ -1,4 +1,5 @@
 // Test de bout en bout : node tests/e2e.js <url avec #k=…> <dossier captures> <faux KoboReader.sqlite>
+// Le dossier servi doit contenir notes.enc, fabriqué par le programme Kobo (voir README).
 const { chromium } = require('playwright');
 const [url, shots] = process.argv.slice(2);
 const fail = m => { console.error('ÉCHEC : ' + m); process.exit(1); };
@@ -98,10 +99,15 @@ const fail = m => { console.error('ÉCHEC : ' + m); process.exit(1); };
 
   // Annotations : import d'un faux KoboReader.sqlite
   await page.click('#home'); await page.click('.game[data-g="notes"]');
-  await page.waitForSelector('#intro:not([hidden])');
-  await page.screenshot({ path: shots + '/8-annotations-accueil.png', fullPage: true });
-  await page.setInputFiles('#file', process.argv[4]);
+  // Envoi automatique : notes.enc (fabriqué par le programme de la Kobo) s'affiche sans rien faire
   await page.waitForSelector('#app:not([hidden]) .ann');
+  const auto = await page.textContent('#sync'); console.log('Annotations automatiques :', await page.textContent('#count'), '·', auto);
+  if (!/automatiquement/.test(auto)) fail('annotations automatiques absentes');
+  await page.screenshot({ path: shots + '/8-annotations-auto.png', fullPage: true });
+  // Import manuel d'un fichier, toujours possible
+  await page.click('#again'); await page.waitForSelector('#intro:not([hidden])');
+  await page.setInputFiles('#file', process.argv[4]);
+  await page.waitForFunction(() => document.getElementById('intro').hidden);
   const count = await page.textContent('#count'); console.log('Annotations :', count);
   if (!/^5 passages · 3 notes · 3 livres/.test(count)) fail('import des annotations');
   const titles = await page.$$eval('.book h2', h => h.map(x => x.firstChild.textContent)); console.log('Livres :', titles.join(' | '));

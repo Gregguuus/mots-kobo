@@ -1,0 +1,2 @@
+# Mots Kobo Notes : envoie les annotations à chaque connexion Wi-Fi
+ACTION=="add", SUBSYSTEM=="net", KERNEL=="eth*|wlan*", RUN+="/usr/local/motskobo/run.sh"

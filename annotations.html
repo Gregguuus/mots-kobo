@@ -56,7 +56,8 @@ button,select,input{font:inherit;color:inherit}
 
   <section class="panel" id="intro" hidden>
     <h2>Retrouve tous tes passages surlignés et tes notes</h2>
-    <p>Ta Kobo garde tout dans un fichier nommé <b>KoboReader.sqlite</b>. Donne-le à cette page : elle le lit sur ton appareil, rien n’est envoyé ailleurs.</p>
+    <p>Une fois le programme Mots Kobo Notes installé sur ta liseuse, tes annotations arrivent ici toutes seules, à chaque connexion Wi-Fi de la Kobo.</p>
+    <p class="soft">Sans ce programme, tu peux aussi donner à cette page le fichier <b>KoboReader.sqlite</b> de ta Kobo : elle le lit sur ton appareil, rien n’est envoyé ailleurs.</p>
     <ol class="steps">
       <li>Branche ta Kobo à ton ordinateur avec le câble USB, puis touche <b>Connecter</b> sur l’écran de la liseuse.</li>
       <li>Ouvre le disque <b>KOBOeReader</b>, puis le dossier caché <code>.kobo</code>. Sur Mac, appuie sur <b>Cmd + Maj + .</b> pour voir les dossiers cachés. Sur Windows, coche <b>Éléments masqués</b> dans l’onglet Affichage.</li>
@@ -66,7 +67,7 @@ button,select,input{font:inherit;color:inherit}
       <p><b>Dépose KoboReader.sqlite ici</b></p>
       <label class="btn" for="file" style="display:inline-flex;align-items:center">Choisir le fichier</label>
       <input type="file" id="file" accept=".sqlite,.db,application/x-sqlite3,application/octet-stream" hidden>
-      <p class="soft" id="status" aria-live="polite">Tes annotations restent ensuite sur cet appareil. Reviens déposer le fichier quand tu veux les mettre à jour.</p>
+      <p class="soft" id="status" aria-live="polite">Tes annotations restent ensuite sur cet appareil.</p>
     </div>
   </section>
 
@@ -81,8 +82,8 @@ button,select,input{font:inherit;color:inherit}
         <select class="sel" id="book" aria-label="Livre"><option value="">Tous les livres</option></select>
         <select class="sel" id="sort" aria-label="Ordre"><option value="book">Par livre, dans l’ordre du livre</option><option value="new">Les plus récentes d’abord</option></select>
       </div>
-      <div class="row"><button class="pillbtn" id="copy">Copier en Markdown</button><button class="pillbtn" id="dl">Télécharger (.md)</button><button class="pillbtn" id="again">Mettre à jour depuis la Kobo</button></div>
-      <p class="count" id="count" aria-live="polite"></p>
+      <div class="row"><button class="pillbtn" id="copy">Copier en Markdown</button><button class="pillbtn" id="dl">Télécharger (.md)</button><button class="pillbtn" id="again">Importer un fichier de la Kobo</button></div>
+      <p class="count" id="count" aria-live="polite"></p><p class="count" id="sync"></p>
     </div>
     <div id="list"></div>
   </section>
@@ -107,17 +108,32 @@ async function parse(buf){SQLP=SQLP||initSqlJs({locateFile:f=>'vendor/'+f}).catc
   try{const cols=new Set((db.exec("PRAGMA table_info(Bookmark)")[0]||{values:[]}).values.map(r=>r[1]));if(!cols.has('Text'))throw new Error('pas-kobo');
     const c=(k,d)=>cols.has(k)?'b.'+k:d;
     const cc=new Set((db.exec("PRAGMA table_info(content)")[0]||{values:[]}).values.map(r=>r[1]));
-    const chap=cc.has('VolumeIndex')&&cols.has('ContentID')?"(SELECT ch.VolumeIndex FROM content ch WHERE ch.ContentID=b.ContentID OR ch.ContentID=replace(b.ContentID,'!','!!') LIMIT 1)":'NULL';
+    const chap=cc.has('VolumeIndex')&&cols.has('ContentID')?"(SELECT ch.VolumeIndex FROM content ch WHERE ch.ContentType<>6 AND (ch.ContentID=b.ContentID OR ch.ContentID=replace(b.ContentID,'!','!!')) LIMIT 1)":'NULL';
     const res=db.exec(`SELECT b.BookmarkID,b.Text,${c('Annotation','NULL')},${c('DateCreated','NULL')},${c('ChapterProgress','0')},${c('Type',"''")},${c('Color','NULL')},${c('Hidden',"'false'")},b.VolumeID,c.Title,c.Attribution,${chap}
       FROM Bookmark b LEFT JOIN content c ON c.ContentID=b.VolumeID AND c.ContentType=6`)[0];
     const out=[];for(const[id,t,n,d,p,ty,col,hid,vol,title,au,ci]of(res?res.values:[])){
       if(String(hid)==='true'||ty==='dogear')continue;const text=String(t||'').replace(/\s+\n/g,'\n').trim(),note=String(n||'').trim();if(!text&&!note)continue;
       const fileName=decodeURIComponent(String(vol||'').split('/').pop()||'').replace(/(\.kepub)?\.(epub|pdf|kepub)$/i,'').replace(/[_-]+/g,' ').replace(/^./,c=>c.toUpperCase());
       out.push({id:String(id),t:text,n:note,d:d||'',p:+p||0,ch:ci==null?null:+ci,c:+col||0,b:title||fileName||'Livre sans titre',a:au||''})}
-    const byBook={};for(const x of out)(byBook[x.b]=byBook[x.b]||[]).push(x.t+' '+x.n);
-    const bl={};for(const[b,ts]of Object.entries(byBook))bl[b]=langOf(ts.join(' '))||'en';
-    for(const x of out)x.l=bl[x.b];
-    return out}finally{db.close()}}
+    return tagLang(out)}finally{db.close()}}
+function tagLang(out){const byBook={};for(const x of out)(byBook[x.b]=byBook[x.b]||[]).push(x.t+' '+x.n);
+  const bl={};for(const[b,ts]of Object.entries(byBook))bl[b]=langOf(ts.join(' '))||'en';for(const x of out)x.l=bl[x.b];return out}
+/* ---------- envoi automatique depuis la Kobo : notes.enc, chiffré avec la même clé que les mots ---------- */
+const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+const b64u=s=>b64(s.replace(/-/g,'+').replace(/_/g,'/')+'='.repeat((4-s.length%4)%4));
+const enc=new TextEncoder(),hex=b=>[...b].map(x=>x.toString(16).padStart(2,'0')).join('');
+const cat=(...a)=>{const o=new Uint8Array(a.reduce((n,x)=>n+x.length,0));let i=0;for(const x of a){o.set(x,i);i+=x.length}return o};
+async function hmac(k,d){const key=await crypto.subtle.importKey('raw',k,{name:'HMAC',hash:'SHA-256'},false,['sign']);return new Uint8Array(await crypto.subtle.sign('HMAC',key,d))}
+async function decrypt(box,keyStr){const K=b64u(keyStr),N=b64(box.n),C=b64(box.c),Ke=await hmac(K,enc.encode('enc')),Km=await hmac(K,enc.encode('mac'));
+  if(hex(await hmac(Km,cat(N,C)))!==box.m)throw new Error('cle');
+  const n=Math.ceil(C.length/32),ks=await Promise.all(Array.from({length:n},(_,i)=>hmac(Ke,cat(N,new Uint8Array([i>>>24&255,i>>>16&255,i>>>8&255,i&255])))));
+  const P=new Uint8Array(C.length);for(let i=0;i<C.length;i++)P[i]=C[i]^ks[i>>5][i&31];
+  const txt=P[0]===0x1f&&P[1]===0x8b?await new Response(new Blob([P]).stream().pipeThrough(new DecompressionStream('gzip'))).text():new TextDecoder().decode(P);return JSON.parse(txt)}
+function getKey(){const m=location.hash.match(/k=([A-Za-z0-9_-]+)/);if(m)return m[1];try{return JSON.parse(localStorage.getItem('motsKobo.v2key')||'null')}catch(e){return null}}
+async function fetchNotes(){const key=getKey();if(!key)return null;const h=location.hostname.match(/^([^.]+)\.github\.io$/i),repo=location.pathname.split('/').filter(Boolean)[0];
+  let r=null;if(h&&repo)try{r=await fetch('https://api.github.com/repos/'+h[1]+'/'+repo+'/contents/notes.enc?t='+Date.now(),{cache:'no-store',headers:{Accept:'application/vnd.github.raw+json'}})}catch(e){}
+  if(!r||!r.ok)r=await fetch('notes.enc?t='+Date.now(),{cache:'no-store'});if(!r.ok)return null;
+  const d=await decrypt(await r.json(),key);return{items:tagLang((d.notes||[]).filter(x=>x&&(x.t||x.n)).map(x=>({...x,id:String(x.id),n:x.n||'',d:x.d||'',p:+x.p||0,c:+x.c||0,ch:x.ch==null?null:+x.ch,b:x.b||'Livre sans titre',a:x.a||''}))),at:Date.parse(d.updated)||Date.now()}}
 /* ---------- affichage ---------- */
 let ANN=[],F={q:'',lang:'all',kind:'all',book:'',sort:'book'};
 const fmt=d=>{const t=Date.parse(d);return isNaN(t)?'':new Date(t).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})};
@@ -149,13 +165,16 @@ $('book').onchange=e=>{F.book=e.target.value;draw()};$('sort').onchange=e=>{F.so
 /* ---------- import ---------- */
 async function take(file){const st=$('status');if(!file)return;st.className='soft';st.textContent='Lecture de '+file.name+'…';
   try{const got=await parse(await file.arrayBuffer());const before=new Set(ANN.map(x=>x.id));const added=got.filter(x=>!before.has(x.id)).length;
-    ANN=got;await saveAnn({at:Date.now(),items:ANN});st.textContent=got.length+' annotations trouvées.';show();toast(added&&before.size?added+' nouvelle'+(added>1?'s':'')+' annotation'+(added>1?'s':''):got.length+' annotations importées');window.scrollTo(0,0)}
+    ANN=got;await saveAnn({at:Date.now(),items:ANN});syncLine(0,0);st.textContent=got.length+' annotations trouvées.';show();toast(added&&before.size?added+' nouvelle'+(added>1?'s':'')+' annotation'+(added>1?'s':''):got.length+' annotations importées');window.scrollTo(0,0)}
   catch(e){st.className='err';st.textContent=String(e&&e.message)==='pas-kobo'?'Ce fichier n’est pas la base de ta Kobo. Choisis bien KoboReader.sqlite, dans le dossier .kobo.':'Impossible de lire ce fichier. Vérifie que c’est bien KoboReader.sqlite.'}}
 $('file').onchange=e=>take(e.target.files[0]);
 const drop=$('drop');['dragenter','dragover'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.add('over')}));
 ['dragleave','drop'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.remove('over')}));
 drop.addEventListener('drop',e=>take(e.dataTransfer.files[0]));
-loadAnn().then(v=>{ANN=(v&&v.items)||[];show()});
+function syncLine(at,auto){$('sync').textContent=auto?'Envoyé automatiquement par ta Kobo le '+new Date(at).toLocaleString('fr-FR',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'})+'.':''}
+loadAnn().then(v=>{ANN=(v&&v.items)||[];syncLine(v&&v.at,v&&v.auto);show()}).then(async()=>{
+  try{const got=await fetchNotes();if(got&&got.items.length){ANN=got.items;await saveAnn({at:got.at,items:ANN,auto:1});syncLine(got.at,1);show()}}catch(e){}});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')fetchNotes().then(got=>{if(got&&got.items.length){ANN=got.items;saveAnn({at:got.at,items:ANN,auto:1});syncLine(got.at,1);show()}}).catch(()=>{})});
 }
 </script>
 </body>
