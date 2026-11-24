@@ -330,7 +330,7 @@ function stats(){inGame();const ps=WORDS.map(P),n=WORDS.length||1,news=ps.filter
   $('cp').onclick=async()=>{const code=await exportCode();cd.hidden=false;cd.value=code;cd.readOnly=true;
     try{await navigator.clipboard.writeText(code);bk.style.color='var(--ok)';bk.textContent='Code copié. Colle-le dans tes notes.'}catch(e){cd.select();bk.style.color='var(--soft)';bk.textContent='Sélectionne le code et copie-le.'}};
   $('im').onclick=()=>{if(cd.hidden||cd.readOnly){cd.hidden=false;cd.readOnly=false;cd.value='';cd.placeholder='Colle ici ton code MK1…';cd.focus();$('im').textContent='Importer ce code';return}
-    importCode(cd.value.trim()).then(k=>{bk.style.color='var(--ok)';bk.textContent='Progression fusionnée : '+k+' mot'+(k>1?'s':'')+' mis à jour.';hud();setTimeout(stats,1400)}).catch(()=>{bk.style.color='var(--ko)';bk.textContent='Ce code ne fonctionne pas. Vérifie qu’il est complet.'})}}
+    importCode(cd.value.trim()).then(k=>{bk.style.color='var(--ok)';bk.textContent='Progression fusionnée : '+k+' mot'+(k>1?'s':'')+' mis à jour.';hud();setTimeout(()=>{if(document.getElementById('bk')===bk)stats()},1400)}).catch(()=>{bk.style.color='var(--ko)';bk.textContent='Ce code ne fonctionne pas. Vérifie qu’il est complet.'})}}
 const gz=async(u8,mode)=>new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(mode?new CompressionStream('gzip'):new DecompressionStream('gzip'))).arrayBuffer());
 async function exportCode(){const raw=enc.encode(JSON.stringify({v:1,prog:PROG,st:ST}));let b=raw,z='0';try{b=await gz(raw,1);z='1'}catch(e){}
   let s='';for(let i=0;i<b.length;i+=8192)s+=String.fromCharCode(...b.subarray(i,i+8192));return'MK1'+z+'.'+btoa(s)}
@@ -365,11 +365,16 @@ async function decrypt(box,keyStr){const K=b64u(keyStr),N=b64(box.n),C=b64(box.c
   const n=Math.ceil(C.length/32),ks=await Promise.all(Array.from({length:n},(_,i)=>hmac(Ke,cat(N,new Uint8Array([i>>>24&255,i>>>16&255,i>>>8&255,i&255])))));
   const P=new Uint8Array(C.length);for(let i=0;i<C.length;i++)P[i]=C[i]^ks[i>>5][i&31];
   const txt=P[0]===0x1f&&P[1]===0x8b?await new Response(new Blob([P]).stream().pipeThrough(new DecompressionStream('gzip'))).text():new TextDecoder().decode(P);return JSON.parse(txt)}
-let badKey=false;
-async function fetchWords(){const key=getKey();if(!key){badKey=true;throw 0}
+let badKey=false,why='',boxInfo='';
+async function fetchWords(){const key=getKey();if(!key){badKey=true;why='nokey';throw 0}
   const u=source(),api=u.startsWith('http');let r=await fetch(u+(api?'?t='+Date.now():''),{cache:'no-store',headers:api?{Accept:'application/vnd.github.raw+json'}:{}});
   if(!r.ok)r=await fetch('words.enc?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw 0;
-  const box=await r.json();try{const d=await decrypt(box,key);local('key',key);return d}catch(e){badKey=true;throw e}}
+  const box=await r.json();boxInfo='clé de '+key.length+' caractères · fichier de '+Math.round((box.c||'').length*3/4/1024)+' Ko';
+  try{const d=await decrypt(box,key);local('key',key);return d}catch(e){badKey=true;why=e&&e.message==='cle'?'mac':'decode:'+(e&&(e.name||e.message)||e);throw e}}
+function privateMsg(){
+  if(why==='nokey')return'Il manque ta clé dans l’adresse de la page. Ouvre l’appli en scannant le QR code de ta Kobo (Outils, Mots Kobo, Ouvrir l’appli sur mon téléphone). Depuis l’icône de l’écran d’accueil, la clé n’est pas transmise la première fois.';
+  if(why==='mac')return'Ta clé ne correspond pas aux mots envoyés par ta Kobo : la Kobo a sans doute changé de clé sans renvoyer tes mots. Rouvre le menu Mots Kobo sur la liseuse pour relancer un envoi, puis scanne à nouveau le QR code.<br><small style="color:var(--soft)">Diagnostic : clé refusée · '+esc(boxInfo)+'</small>';
+  return'Tes mots n’ont pas pu être déchiffrés sur ce téléphone.<br><small style="color:var(--soft)">Diagnostic : '+esc(why)+' · '+esc(boxInfo)+'</small>'}
 let lastCount=(local('words')||[]).length;
 async function load(quiet){
   PROG=obj(local('prog'));const ls=obj(local('stats'));ST={xp:ls.xp||0,days:obj(ls.days),best:obj(ls.best),fresh:obj(ls.fresh)};
@@ -379,7 +384,7 @@ async function load(quiet){
     if(added)confetti(added+' nouveau'+(added>1?'x':'')+' mot'+(added>1?'s':'')+' !')}
   catch(e){if(!ALL.length&&!badKey){ALL=tagLangs(local('words')||[]);setLang(local('lang')||LANG);lastCount=ALL.length}if(!badKey||WORDS.length)setOffline(true)}
   if(quiet&&!$('home').hidden)return;
-  if(!WORDS.length){view.innerHTML='<div class="card center"><p style="margin:auto">'+(badKey?'Cette appli est privée. Ouvre-la en scannant le QR code de ta Kobo (Outils, Mots Kobo, Ouvrir l’appli sur mon téléphone).':'Tes mots arrivent : la toute première fois, GitHub met une minute à tout mettre en ligne. Rouvre l’appli dans un instant.')+'</p></div>';hud();return}
+  if(!WORDS.length){view.innerHTML='<div class="card center"><p style="margin:auto">'+(badKey?privateMsg():'Tes mots arrivent : la toute première fois, GitHub met une minute à tout mettre en ligne. Rouvre l’appli dans un instant.')+'</p></div>';hud();return}
   home()}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')load(true)});
 if('serviceWorker' in navigator){try{navigator.serviceWorker.register('sw.js').catch(()=>{})}catch(e){}}
