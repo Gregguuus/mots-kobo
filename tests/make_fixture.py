@@ -21,6 +21,12 @@ WORDS = [
  ("fleeting", "fugace", "adj", "It was a <<fleeting>> moment of joy.", "Normal People"),
  ("threshold", "le seuil", "noun", "She paused on the <<threshold>>.", "Normal People"),
  ("to wince", "grimacer", "verb", "He <<winced>> at the noise.", "Normal People"),
+ ("dérisoire", "insignifiant, qui ne mérite pas d'attention", "adj", "Tout cela me paraissait <<dérisoire>> et je ne savais pas pourquoi.", "L'Étranger"),
+ ("s'assoupir", "s'endormir doucement", "verb", "Je me suis <<assoupi>> dans le car qui sentait l'essence.", "L'Étranger"),
+ ("la torpeur", "engourdissement, ralentissement", "noun", "Une <<torpeur>> lourde montait de la mer et de la plage.", "L'Étranger"),
+ ("vétuste", "vieux et abîmé", "adj", "La maison était <<vétuste>> mais elle avait son charme.", "Les Choses"),
+ ("une velléité", "une intention faible, sans suite", "noun", "Ils avaient eu des <<velléités>> de changer de vie.", "Les Choses"),
+ ("chatoyant", "aux reflets changeants", "adj", "Les tissus <<chatoyants>> étaient dans la vitrine.", "Les Choses"),
 ]
 
 def main(out):
