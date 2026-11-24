@@ -11,7 +11,9 @@ class H(BaseHTTPRequestHandler):
     def do_GET(self):
         p = self.path.split("?")[0]
         if p in files: return self.send(200, {"sha": files[p]})
-        self.send(404 if "/contents/" in p else 200, {"message": "Not Found"})
+        if "/contents/" in p: return self.send(404, {"message": "Not Found"})
+        ok = self.headers.get("Authorization") == "Bearer jeton-de-test"
+        self.send(200 if ok else 401, {"full_name": "gregguuus/mots-kobo", "permissions": {"admin": False, "push": ok}} if ok else {"message": "Bad credentials"})
     def do_PUT(self):
         if self.headers.get("Authorization") != "Bearer jeton-de-test": return self.send(401, {"message": "Bad credentials"})
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))

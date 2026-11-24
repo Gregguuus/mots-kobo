@@ -21,7 +21,13 @@ Tous les passages surlignés et les notes, livre par livre. On y dépose le fich
 ## Annotations automatiques (programme pour la Kobo)
 `kobo/` contient **Mots Kobo Notes**, un petit programme pour la liseuse (Go, compilé pour ARM). À chaque connexion Wi-Fi, il lit les surlignages et notes de `KoboReader.sqlite`, les chiffre avec la même clé que les mots et les envoie dans `notes.enc`. Il n'envoie rien si rien n'a changé. `annotations.html` les affiche alors tout seul.
 
-Installation (une seule fois, Kobo branchée) :
+Installation la plus simple (Kobo branchée au Mac, une commande dans le Terminal) :
+```
+curl -fsSL https://raw.githubusercontent.com/gregguuus/mots-kobo/main/kobo/installer.sh | sh -s '<adresse de l'appli avec #k=…>'
+```
+La commande attend la Kobo, demande le jeton GitHub, le vérifie, copie tout et éjecte la Kobo.
+
+Installation à la main :
 1. Créer un jeton GitHub « fine-grained » limité au dépôt `mots-kobo`, permission **Contents : Read and write**.
 2. Copier `kobo/KoboRoot.tgz` dans le dossier caché `.kobo` de la liseuse.
 3. Créer le dossier `MotsKobo` à la racine de la liseuse avec `config.txt` :
