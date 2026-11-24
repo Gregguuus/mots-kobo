@@ -1,7 +1,9 @@
 # mots-kobo
 Mots Kobo (données chiffrées)
 
-Appli de révision des mots surlignés sur la Kobo. Les mots arrivent chiffrés dans `words.enc` ; la clé reste dans l'adresse (`#k=…`) et sur l'appareil.
+Appli de révision des mots surlignés sur la Kobo.
+
+**Important** : la Kobo renvoie sa propre `index.html` (et `sw.js`, l'icône, `words.enc`) à chaque synchronisation. La nouvelle appli vit donc dans **`app.html`**, que la Kobo ne touche pas : https://gregguuus.github.io/mots-kobo/app.html. Elle reprend la clé enregistrée sur le téléphone par l'appli de la Kobo et la remet dans son adresse, pour que l'icône d'écran d'accueil fonctionne. Les mots arrivent chiffrés dans `words.enc` ; la clé reste dans l'adresse (`#k=…`) et sur l'appareil.
 
 ## Deux listes
 Les mots de tes livres en anglais et ceux de tes livres en français sont séparés : un sélecteur Anglais / Français en haut de l'accueil. La langue est reconnue livre par livre, d'après les phrases surlignées (ou le champ `l` si l'export le fournit).
@@ -19,8 +21,8 @@ Tous les passages surlignés et les notes, livre par livre. On y dépose le fich
 ## Tests
 ```
 python3 tests/make_fixture.py /tmp/site      # écrit un words.enc de test et affiche sa clé
-cp index.html sw.js /tmp/site && (cd /tmp/site && python3 -m http.server 8765 &)
+cp app.html sw.js /tmp/site && (cd /tmp/site && python3 -m http.server 8765 &)
 python3 tests/make_kobo_db.py /tmp/kobo.sqlite  # faux KoboReader.sqlite
 cp -r annotations.html vendor /tmp/site
-node tests/e2e.js "http://localhost:8765/#k=<clé>" /tmp/captures /tmp/kobo.sqlite
+node tests/e2e.js "http://localhost:8765/app.html#k=<clé>" /tmp/captures /tmp/kobo.sqlite
 ```

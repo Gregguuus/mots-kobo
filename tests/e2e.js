@@ -14,6 +14,9 @@ const fail = m => { console.error('ÉCHEC : ' + m); process.exit(1); };
   console.log('Tuiles :', tiles.join(', '));
   if (!tiles.includes('write') || !tiles.includes('stats')) fail('nouveaux jeux absents');
   await page.screenshot({ path: shots + '/1-accueil.png', fullPage: true });
+  // La clé vue une fois suffit : sans #k= dans l'adresse, l'appli la retrouve et la remet dans l'adresse
+  await page.goto(url.split('#')[0]); await page.waitForSelector('.game[data-g="cards"]');
+  const h = await page.evaluate(() => location.hash); console.log('Adresse après ouverture sans clé :', h.slice(0, 8) + '…'); if (!h.startsWith('#k=')) fail('clé non remise dans l’adresse');
 
   // Révision du jour : 15 nouveaux mots max
   await page.click('.game[data-g="cards"]');

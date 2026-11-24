@@ -370,9 +370,9 @@ async function fetchWords(){const key=getKey();if(!key){badKey=true;why='nokey';
   const u=source(),api=u.startsWith('http');let r=await fetch(u+(api?'?t='+Date.now():''),{cache:'no-store',headers:api?{Accept:'application/vnd.github.raw+json'}:{}});
   if(!r.ok)r=await fetch('words.enc?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw 0;
   const box=await r.json();boxInfo='clé de '+key.length+' caractères · fichier de '+Math.round((box.c||'').length*3/4/1024)+' Ko';
-  try{const d=await decrypt(box,key);local('key',key);return d}catch(e){badKey=true;why=e&&e.message==='cle'?'mac':'decode:'+(e&&(e.name||e.message)||e);throw e}}
+  try{const d=await decrypt(box,key);local('key',key);if(!/k=/.test(location.hash))try{history.replaceState(null,'',location.pathname+location.search+'#k='+key)}catch(e){}return d}catch(e){badKey=true;why=e&&e.message==='cle'?'mac':'decode:'+(e&&(e.name||e.message)||e);throw e}}
 function privateMsg(){
-  if(why==='nokey')return'Il manque ta clé dans l’adresse de la page. Ouvre l’appli en scannant le QR code de ta Kobo (Outils, Mots Kobo, Ouvrir l’appli sur mon téléphone). Depuis l’icône de l’écran d’accueil, la clé n’est pas transmise la première fois.';
+  if(why==='nokey')return'Ce téléphone ne connaît pas encore ta clé. Scanne une fois le QR code de ta Kobo (Outils, Mots Kobo, Ouvrir l’appli sur mon téléphone), puis rouvre cette page dans Safari.';
   if(why==='mac')return'Ta clé ne correspond pas aux mots envoyés par ta Kobo : la Kobo a sans doute changé de clé sans renvoyer tes mots. Rouvre le menu Mots Kobo sur la liseuse pour relancer un envoi, puis scanne à nouveau le QR code.<br><small style="color:var(--soft)">Diagnostic : clé refusée · '+esc(boxInfo)+'</small>';
   return'Tes mots n’ont pas pu être déchiffrés sur ce téléphone.<br><small style="color:var(--soft)">Diagnostic : '+esc(why)+' · '+esc(boxInfo)+'</small>'}
 let lastCount=(local('words')||[]).length;
