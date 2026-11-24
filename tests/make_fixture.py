@@ -32,6 +32,8 @@ WORDS = [
 def main(out):
     words = [{"w": w, "i": i, "t": [[pos, i]], "c": c, "b": b, "d": f"2026-11-{10 + n % 12:02d}T20:00:00"}
              for n, (w, i, pos, c, b) in enumerate(WORDS)]
+    # comme les vrais envois de la Kobo : « l » est la forme de base, et un mot récent peut arriver sans traduction
+    words.append({"w": "weird", "i": "", "t": {}, "l": "weird", "d": "2026-11-24", "b": "Normal People"})
     plain = gzip.compress(json.dumps({"words": words, "updated": "2026-11-24T07:30:00"}).encode())
     key = os.urandom(32)
     ke = hmac.new(key, b"enc", hashlib.sha256).digest()

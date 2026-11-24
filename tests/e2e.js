@@ -8,8 +8,11 @@ const fail = m => { console.error('ÉCHEC : ' + m); process.exit(1); };
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   await page.addInitScript(() => { window.speechSynthesis = { speak() {}, cancel() {} }; window.SpeechSynthesisUtterance = function (t) { this.text = t; }; });
+  await page.route('https://api.mymemory.translated.net/**', r => r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ responseStatus: 200, responseData: { translatedText: 'bizarre' } }) }));
   await page.goto(url);
   await page.waitForSelector('.game[data-g="cards"]');
+  await page.waitForFunction(() => /"en:weird":"bizarre"/.test(localStorage.getItem('motsKobo.v2tr') || ''));
+  console.log('Traduction automatique : weird → bizarre');
   const tiles = await page.$$eval('.game', b => b.map(x => x.dataset.g));
   console.log('Tuiles :', tiles.join(', '));
   if (!tiles.includes('write') || !tiles.includes('stats')) fail('nouveaux jeux absents');
@@ -90,7 +93,8 @@ const fail = m => { console.error('ÉCHEC : ' + m); process.exit(1); };
   await page.click('#home');
   await page.screenshot({ path: shots + '/7-accueil-francais.png', fullPage: true });
   await page.click('.langs button[data-l="en"]'); await page.click('.game[data-g="list"]');
-  const enN = await page.$$eval('details.item', d => d.length); console.log('Mots anglais :', enN); if (enN !== 18) fail('liste anglaise');
+  const enN = await page.$$eval('details.item', d => d.length); console.log('Mots anglais :', enN); if (enN !== 19) fail('liste anglaise');
+  const wr = await page.$$eval('details.item summary', s => s.map(x => x.innerText.replace(/\s+/g, ' ')).find(x => x.startsWith('weird'))); console.log('Mes mots :', wr); if (!/bizarre/.test(wr)) fail('traduction automatique absente');
 
   // Annotations : import d'un faux KoboReader.sqlite
   await page.click('#home'); await page.click('.game[data-g="notes"]');

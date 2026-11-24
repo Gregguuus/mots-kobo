@@ -165,7 +165,8 @@ function schedule(p,g,now=Date.now()){p={...p,last:now};
   else{const base=p.s+Math.max(0,(now-p.due)/DAY)/2;p.e=Math.min(3.2,Math.max(1.3,p.e+(g===2?-.15:g===4?.15:0)));p.s=g===2?base*1.2:g===3?base*p.e:base*p.e*1.3}
   p.s=Math.min(p.s,365);p.reps++;p.due=now+p.s*DAY;return p}
 const ivl=s=>s<1?Math.max(1,Math.round(s*24))+' h':s<30?Math.round(s)+' j':s<365?Math.round(s/30)+' mois':'1 an';
-const mean=w=>w.i||(w.t&&w.t[0]?w.t[0][1]:'?');
+const mean=w=>w.i||(Array.isArray(w.t)&&w.t[0]?w.t[0][1]:'…');
+const known=w=>mean(w)!=='…';
 const ctxHTML=(w,blank)=>w.c?esc(w.c).replace(/&lt;&lt;(.*?)&gt;&gt;/,(m,x)=>blank?'<span class="blank">&nbsp;</span>':'<mark>'+x+'</mark>'):'<i style="color:var(--soft)">Phrase pas encore retrouvée.</i>';
 const dots=b=>'<span class="dots">'+[1,2,3,4,5,6].map(i=>'<i class="'+(i<=b?'on':'')+'"></i>').join('')+'</span>';
 function speak(t){try{const u=new SpeechSynthesisUtterance(t);u.lang=LANG==='fr'?'fr-FR':'en-GB';u.rate=.9;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){}}
@@ -205,7 +206,7 @@ function home(){$('home').hidden=true;keyH=null;hud();const due=dueQueue().lengt
    ['list','',ICO.list,'Mes mots',WORDS.length+' mots '+(LANG==='fr'?'français':'anglais')+' de tes livres, avec recherche.',''],
    ['notes','',ICO.quote,'Mes annotations','Tous tes passages surlignés et tes notes, livre par livre.','']];
   if(tiles.filter(t=>!t[1]).length%2)tiles[tiles.length-1][1]='wide';
-  const nEn=ALL.filter(w=>w._l==='en').length,nFr=ALL.length-nEn;
+  const nEn=ALL.filter(w=>w._l==='en'&&known(w)).length,nFr=ALL.filter(w=>w._l==='fr'&&known(w)).length;
   view.innerHTML=(nEn&&nFr?'<div class="langs" role="group" aria-label="Langue des mots"><button data-l="en" aria-pressed="'+(LANG==='en')+'">Anglais <small>'+nEn+'</small></button><button data-l="fr" aria-pressed="'+(LANG==='fr')+'">Français <small>'+nFr+'</small></button></div>':'')+'<div class="games">'+tiles.map(t=>'<button class="game '+t[1]+'" data-g="'+t[0]+'">'+t[2]+'<b>'+t[3]+'</b><small>'+t[4]+'</small>'+(t[5]?'<span class="tag">'+t[5]+'</span>':'')+'</button>').join('')+'</div>';
   view.querySelectorAll('.game').forEach(b=>b.onclick=()=>GAMES[b.dataset.g]());
   view.querySelectorAll('.langs button').forEach(b=>b.onclick=()=>{setLang(b.dataset.l);home()});}
@@ -215,14 +216,22 @@ const ENW=new Set('the an and is was that which in for not he she it i we you th
 function langOf(t){const ws=String(t).toLowerCase().match(/[a-zàâçéèêëîïôûùüÿœ’']+/g)||[];let f=0,e=0;for(const w of ws){if(FRW.has(w))f++;if(ENW.has(w))e++}if(/[àâçéèêëîïôûùœ]/.test(t))f+=.5;return f>e?'fr':e>f?'en':''}
 function tagLangs(ws){const byBook={};for(const w of ws)(byBook[w.b]=byBook[w.b]||[]).push(String(w.c||'').replace(/<<|>>/g,''));
   const bl={};for(const[b,cs]of Object.entries(byBook))bl[b]=langOf(cs.join(' '));
-  for(const w of ws){const l=String(w.l||w.lang||'').slice(0,2).toLowerCase();w._l=l==='fr'||l==='en'?l:bl[w.b]||langOf(w.w)||'en'}return ws}
-function setLang(l){LANG=l==='fr'?'fr':'en';local('lang',LANG);WORDS=ALL.filter(w=>w._l===LANG);if(!WORDS.length&&ALL.length){LANG=ALL[0]._l;WORDS=ALL.filter(w=>w._l===LANG)}}
+  for(const w of ws){if(!Array.isArray(w.t))w.t=[];w.i=String(w.i||'');const l=String(w.lang||'').slice(0,2).toLowerCase();w._l=l==='fr'||l==='en'?l:bl[w.b]||langOf(w.w)||'en'}applyTr(ws);return ws}
+/* ---------- traduction automatique des mots arrivés sans traduction ---------- */
+function applyTr(ws){const tr=obj(local('tr'));for(const w of ws){const k=w._l+':'+w.w;if(!w.i&&!w.t.length&&tr[k]){w.i=tr[k];w.auto=1}}}
+let trBusy=false;
+async function fillTr(){if(trBusy)return;trBusy=true;const tr=obj(local('tr'));let n=0;
+  for(const w of ALL.filter(w=>!known(w)&&w._l==='en').slice(0,60)){
+    try{const r=await fetch('https://api.mymemory.translated.net/get?q='+encodeURIComponent(w.w)+'&langpair=en|fr'),j=await r.json(),t=String(j&&j.responseData&&j.responseData.translatedText||'').trim();
+      if(+j.responseStatus===200&&t&&!/MYMEMORY|QUERY LENGTH/i.test(t)&&t.toLowerCase()!==w.w.toLowerCase()){tr[w._l+':'+w.w]=t;w.i=t;w.auto=1;n++}}catch(e){break}}
+  if(n){local('tr',tr);setLang(LANG);if($('home').hidden)home()}trBusy=false}
+function setLang(l){LANG=l==='fr'?'fr':'en';local('lang',LANG);WORDS=ALL.filter(w=>w._l===LANG&&known(w));if(!WORDS.length&&ALL.some(known)){LANG=ALL.find(known)._l;WORDS=ALL.filter(w=>w._l===LANG&&known(w))}}
 function inGame(){stopTimers();$('home').hidden=false;keyH=null;try{window.scrollTo(0,0)}catch(e){}}
 $('home').onclick=()=>{stopTimers();home()};
 let timers=[];const stopTimers=()=>{timers.forEach(t=>{clearInterval(t);clearTimeout(t)});timers=[]};
 const weak=()=>{const a=shuffle(WORDS);a.sort((x,y)=>lvl(P(x))-lvl(P(y)));return a};
 const pick=(n=15)=>{const a=weak();return a[Math.floor(Math.random()*Math.min(n,a.length))]};
-function backHTML(w){return '<div class="back"><p class="ici"><small>Sens ici</small>'+esc(mean(w))+'</p>'+(w.t&&w.t.length?'<ul class="senses">'+w.t.map(t=>'<li><i>'+esc(t[0])+'</i> · '+esc(t[1])+'</li>').join('')+'</ul>':'')+'</div>'}
+function backHTML(w){return '<div class="back"><p class="ici"><small>Sens ici'+(w.auto?' · traduction automatique':'')+'</small>'+esc(mean(w))+'</p>'+(w.t&&w.t.length?'<ul class="senses">'+w.t.map(t=>'<li><i>'+esc(t[0])+'</i> · '+esc(t[1])+'</li>').join('')+'</ul>':'')+'</div>'}
 /* ---------- Défi éclair ---------- */
 function flash(){inGame();let left=60,score=0,combo=0,missed=[],t0=Date.now(),cur;
   const mult=()=>combo>=6?3:combo>=3?2:1;
@@ -343,7 +352,7 @@ async function importCode(code){const m=code.match(/^MK1([01])\.([A-Za-z0-9+/=\s
   saveProg();saveStats();return k}
 /* ---------- Liste ---------- */
 function list(){inGame();view.innerHTML='<input class="search" id="q" type="search" placeholder="Chercher un mot ou une traduction"><div id="it"></div>';
-  const draw=s=>{s=s.toLowerCase();const r=WORDS.filter(w=>!s||(w.w+' '+mean(w)+' '+(w.t||[]).map(t=>t[1]).join(' ')).toLowerCase().includes(s));
+  const draw=s=>{s=s.toLowerCase();const r=WORDS.filter(w=>!s||(w.w+' '+mean(w)+' '+(Array.isArray(w.t)?w.t:[]).map(t=>t[1]).join(' ')).toLowerCase().includes(s));
     $('it').innerHTML=r.map(w=>'<details class="item"><summary><b>'+esc(w.w)+'</b><span>'+esc(mean(w))+'<br>'+dots(lvl(P(w)))+'</span></summary><p class="ctx" style="margin:10px 0">'+ctxHTML(w)+'</p>'+backHTML(w)+'<p class="meta">'+esc(w.b)+' · '+fmtD(w.d)+'</p></details>').join('')||'<p style="color:var(--soft)">Aucun mot.</p>'};
   $('q').oninput=e=>draw(e.target.value);draw('')}
 const GAMES={flash,pairs,cloze,cards,list,stats,notes:()=>{location.href='annotations.html'},write:()=>typeGame('write'),dict:()=>typeGame('dict')};
@@ -383,6 +392,7 @@ async function load(quiet){
     if(d.updated)$('foot').textContent='Mots mis à jour le '+new Date(d.updated).toLocaleString('fr-FR',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'})+' depuis ta Kobo. Ta progression est gardée sur cet appareil.';
     if(added)confetti(added+' nouveau'+(added>1?'x':'')+' mot'+(added>1?'s':'')+' !')}
   catch(e){if(!ALL.length&&!badKey){ALL=tagLangs(local('words')||[]);setLang(local('lang')||LANG);lastCount=ALL.length}if(!badKey||WORDS.length)setOffline(true)}
+  if(ALL.some(w=>!known(w)))fillTr();
   if(quiet&&!$('home').hidden)return;
   if(!WORDS.length){view.innerHTML='<div class="card center"><p style="margin:auto">'+(badKey?privateMsg():'Tes mots arrivent : la toute première fois, GitHub met une minute à tout mettre en ligne. Rouvre l’appli dans un instant.')+'</p></div>';hud();return}
   home()}
