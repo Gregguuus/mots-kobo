@@ -1,2 +1,3 @@
-# Mots Kobo Notes : envoie les annotations à chaque connexion Wi-Fi
+# Mots Kobo Notes : démarre la surveillance au démarrage de la Kobo et à chaque connexion Wi-Fi
+KERNEL=="loop0", ACTION=="add", RUN+="/usr/local/motskobo/run.sh"
 ACTION=="add", SUBSYSTEM=="net", KERNEL=="eth*|wlan*", RUN+="/usr/local/motskobo/run.sh"

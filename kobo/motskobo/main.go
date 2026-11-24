@@ -282,6 +282,7 @@ func main() {
 	dbPath := flag.String("db", "/mnt/onboard/.kobo/KoboReader.sqlite", "base de la Kobo")
 	out := flag.String("out", "", "écrire notes.enc dans ce fichier au lieu de l'envoyer (tests)")
 	force := flag.Bool("force", false, "envoyer même si rien n'a changé")
+	tries := flag.Int("tries", 12, "essais de connexion, 10 s d'écart")
 	flag.Parse()
 	log.SetFlags(log.Ldate | log.Ltime)
 	if *out == "" {
@@ -289,13 +290,13 @@ func main() {
 			log.SetOutput(io.MultiWriter(os.Stdout, f))
 		}
 	}
-	if err := run(*dir, *dbPath, *out, *force); err != nil {
+	if err := run(*dir, *dbPath, *out, *force, *tries); err != nil {
 		log.Println("ERREUR :", err)
 		os.Exit(1)
 	}
 }
 
-func run(dir, dbPath, out string, force bool) error {
+func run(dir, dbPath, out string, force bool, tries int) error {
 	c, err := readConfig(filepath.Join(dir, "config.txt"))
 	if err != nil {
 		return err
@@ -320,7 +321,7 @@ func run(dir, dbPath, out string, force bool) error {
 	if out != "" {
 		return os.WriteFile(out, box, 0644)
 	}
-	if !waitOnline(c.API, 12) {
+	if !waitOnline(c.API, tries) {
 		return errors.New("pas de connexion Internet")
 	}
 	if err := push(c, box); err != nil {
