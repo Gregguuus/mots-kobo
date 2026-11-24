@@ -79,7 +79,7 @@ button,select,input{font:inherit;color:inherit}
       </div>
       <div class="row">
         <select class="sel" id="book" aria-label="Livre"><option value="">Tous les livres</option></select>
-        <select class="sel" id="sort" aria-label="Ordre"><option value="book">Par livre, dans l’ordre de lecture</option><option value="new">Les plus récentes d’abord</option></select>
+        <select class="sel" id="sort" aria-label="Ordre"><option value="book">Par livre, dans l’ordre du livre</option><option value="new">Les plus récentes d’abord</option></select>
       </div>
       <div class="row"><button class="pillbtn" id="copy">Copier en Markdown</button><button class="pillbtn" id="dl">Télécharger (.md)</button><button class="pillbtn" id="again">Mettre à jour depuis la Kobo</button></div>
       <p class="count" id="count" aria-live="polite"></p>
@@ -103,15 +103,17 @@ const saveAnn=v=>idb('readwrite',s=>s.put(v,'annotations')).catch(()=>{});
 const loadAnn=()=>idb('readonly',s=>s.get('annotations')).catch(()=>null);
 /* ---------- lecture de KoboReader.sqlite ---------- */
 let SQLP=null;
-async function parse(buf){SQLP=SQLP||initSqlJs({locateFile:f=>'vendor/'+f});const SQL=await SQLP,db=new SQL.Database(new Uint8Array(buf));
+async function parse(buf){SQLP=SQLP||initSqlJs({locateFile:f=>'vendor/'+f}).catch(e=>{SQLP=null;throw e});const SQL=await SQLP,db=new SQL.Database(new Uint8Array(buf));
   try{const cols=new Set((db.exec("PRAGMA table_info(Bookmark)")[0]||{values:[]}).values.map(r=>r[1]));if(!cols.has('Text'))throw new Error('pas-kobo');
     const c=(k,d)=>cols.has(k)?'b.'+k:d;
-    const res=db.exec(`SELECT b.BookmarkID,b.Text,${c('Annotation','NULL')},${c('DateCreated','NULL')},${c('ChapterProgress','0')},${c('Type',"''")},${c('Color','NULL')},${c('Hidden',"'false'")},b.VolumeID,c.Title,c.Attribution
+    const cc=new Set((db.exec("PRAGMA table_info(content)")[0]||{values:[]}).values.map(r=>r[1]));
+    const chap=cc.has('VolumeIndex')&&cols.has('ContentID')?"(SELECT ch.VolumeIndex FROM content ch WHERE ch.ContentID=b.ContentID OR ch.ContentID=replace(b.ContentID,'!','!!') LIMIT 1)":'NULL';
+    const res=db.exec(`SELECT b.BookmarkID,b.Text,${c('Annotation','NULL')},${c('DateCreated','NULL')},${c('ChapterProgress','0')},${c('Type',"''")},${c('Color','NULL')},${c('Hidden',"'false'")},b.VolumeID,c.Title,c.Attribution,${chap}
       FROM Bookmark b LEFT JOIN content c ON c.ContentID=b.VolumeID AND c.ContentType=6`)[0];
-    const out=[];for(const[id,t,n,d,p,ty,col,hid,vol,title,au]of(res?res.values:[])){
+    const out=[];for(const[id,t,n,d,p,ty,col,hid,vol,title,au,ci]of(res?res.values:[])){
       if(String(hid)==='true'||ty==='dogear')continue;const text=String(t||'').replace(/\s+\n/g,'\n').trim(),note=String(n||'').trim();if(!text&&!note)continue;
       const fileName=decodeURIComponent(String(vol||'').split('/').pop()||'').replace(/(\.kepub)?\.(epub|pdf|kepub)$/i,'').replace(/[_-]+/g,' ').replace(/^./,c=>c.toUpperCase());
-      out.push({id:String(id),t:text,n:note,d:d||'',p:+p||0,c:+col||0,b:title||fileName||'Livre sans titre',a:au||''})}
+      out.push({id:String(id),t:text,n:note,d:d||'',p:+p||0,ch:ci==null?null:+ci,c:+col||0,b:title||fileName||'Livre sans titre',a:au||''})}
     const byBook={};for(const x of out)(byBook[x.b]=byBook[x.b]||[]).push(x.t+' '+x.n);
     const bl={};for(const[b,ts]of Object.entries(byBook))bl[b]=langOf(ts.join(' '))||'en';
     for(const x of out)x.l=bl[x.b];
@@ -120,13 +122,13 @@ async function parse(buf){SQLP=SQLP||initSqlJs({locateFile:f=>'vendor/'+f});cons
 let ANN=[],F={q:'',lang:'all',kind:'all',book:'',sort:'book'};
 const fmt=d=>{const t=Date.parse(d);return isNaN(t)?'':new Date(t).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})};
 function filtered(){const q=F.q.toLowerCase();let r=ANN.filter(x=>(F.lang==='all'||x.l===F.lang)&&(F.kind==='all'||x.n)&&(!F.book||x.b===F.book)&&(!q||(x.t+' '+x.n+' '+x.b+' '+x.a).toLowerCase().includes(q)));
-  return r.sort(F.sort==='new'?(a,b)=>String(b.d).localeCompare(String(a.d)):(a,b)=>a.b.localeCompare(b.b,'fr')||a.p-b.p||String(a.d).localeCompare(String(b.d)))}
-function mark(text,q){const e=esc(text);if(!q)return'<mark>'+e+'</mark>';const re=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');return'<mark>'+e.replace(re,'<u>$1</u>')+'</mark>'}
+  return r.sort(F.sort==='new'?(a,b)=>String(b.d).localeCompare(String(a.d)):(a,b)=>a.b.localeCompare(b.b,'fr')||(a.ch!=null&&b.ch!=null?a.ch-b.ch||a.p-b.p:0)||String(a.d).localeCompare(String(b.d)))}
+function mark(text,q){if(!q)return'<mark>'+esc(text)+'</mark>';const re=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');return'<mark>'+String(text).split(re).map((p,i)=>i%2?'<u>'+esc(p)+'</u>':esc(p)).join('')+'</mark>'}
 function draw(){const r=filtered(),books=new Set(r.map(x=>x.b)),notes=r.filter(x=>x.n).length;
   $('count').textContent=r.length+' passage'+(r.length>1?'s':'')+' · '+notes+' note'+(notes>1?'s':'')+' · '+books.size+' livre'+(books.size>1?'s':'');
   if(!r.length){$('list').innerHTML='<p class="empty">Aucune annotation ne correspond.</p>';return}
   const card=x=>'<article class="ann" style="--c:'+(COLORS[x.c]||COLORS[0])+'">'+(x.t?'<p class="quote">'+mark(x.t,F.q)+'</p>':'')+(x.n?'<p class="note"><b>Ta note</b>'+esc(x.n)+'</p>':'')+
-    '<div class="meta"><span>'+(F.sort==='new'?esc(x.b)+' · ':'')+fmt(x.d)+'</span><span>'+(x.p?Math.round(x.p*100)+' % du livre':'')+(x.n?' <span class="tag n">Note</span>':'')+'</span></div></article>';
+    '<div class="meta"><span>'+(F.sort==='new'?esc(x.b)+' · ':'')+fmt(x.d)+'</span><span>'+(x.p?Math.round(x.p*100)+' % du chapitre':'')+(x.n?' <span class="tag n">Note</span>':'')+'</span></div></article>';
   if(F.sort==='new'){$('list').innerHTML='<div class="book">'+r.map(card).join('')+'</div>';return}
   const groups=[];for(const x of r){let g=groups[groups.length-1];if(!g||g.b!==x.b)groups.push(g={b:x.b,a:x.a,l:x.l,items:[]});g.items.push(x)}
   $('list').innerHTML=groups.map(g=>'<section class="book"><h2>'+esc(g.b)+'<small>'+esc(g.a)+(g.a?' · ':'')+g.items.length+' passage'+(g.items.length>1?'s':'')+' · '+(g.l==='fr'?'français':'anglais')+'</small></h2>'+g.items.map(card).join('')+'</section>').join('')}
@@ -134,8 +136,8 @@ function fillBooks(){const s=$('book'),cur=F.book,bs=[...new Set(ANN.filter(x=>F
   s.replaceChildren(new Option('Tous les livres ('+bs.length+')',''),...bs.map(b=>new Option(b+' ('+ANN.filter(x=>x.b===b).length+')',b)));if(!bs.includes(cur))F.book='';s.value=F.book}
 function show(){const has=ANN.length>0;$('intro').hidden=has;$('app').hidden=!has;if(has){fillBooks();draw()}}
 /* ---------- export ---------- */
-function markdown(){const r=filtered();let md='# Mes annotations Kobo\n\n',cur='';for(const x of r){if(x.b!==cur){cur=x.b;md+='## '+x.b+(x.a?' · '+x.a:'')+'\n\n'}
-  if(x.t)md+=x.t.split('\n').map(l=>'> '+l).join('\n')+'\n\n';if(x.n)md+='**Ma note :** '+x.n+'\n\n';md+='_'+[fmt(x.d),x.p?Math.round(x.p*100)+' %':''].filter(Boolean).join(' · ')+'_\n\n'}return md}
+function markdown(){const r=filtered();let md='# Mes annotations Kobo\n\n',cur='';for(const x of r){if(F.sort!=='new'&&x.b!==cur){cur=x.b;md+='## '+x.b+(x.a?' · '+x.a:'')+'\n\n'}
+  if(x.t)md+=x.t.split('\n').map(l=>'> '+l).join('\n')+'\n\n';if(x.n)md+='**Ma note :** '+x.n+'\n\n';md+='_'+[F.sort==='new'?x.b:'',fmt(x.d)].filter(Boolean).join(' · ')+'_\n\n'}return md}
 function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2200)}
 $('copy').onclick=async()=>{try{await navigator.clipboard.writeText(markdown());toast('Copié : colle-le dans tes notes')}catch(e){toast('Copie impossible ici, utilise Télécharger')}};
 $('dl').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([markdown()],{type:'text/markdown'}));a.download='annotations-kobo.md';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)};

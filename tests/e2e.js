@@ -68,9 +68,11 @@ const fail = m => { console.error('ÉCHEC : ' + m); process.exit(1); };
   const after = await page.evaluate(() => localStorage.getItem('motsKobo.v2prog'));
   console.log('Restauration :', before === after ? 'identique' : 'DIFFÉRENTE'); if (before !== after) fail('restauration');
 
+  // Quitter un jeu juste après une réponse ne le fait pas revenir
+  await page.click('#home'); await page.click('.game[data-g="flash"]'); await page.click('.opt'); await page.click('#home');
+  await page.waitForTimeout(1200); if (!(await page.$('.game[data-g="cards"]'))) fail('le Défi éclair revient après Accueil'); console.log('Accueil après Défi éclair : stable');
   // Anciens jeux toujours là
-  for (const g of ['flash', 'pairs', 'cloze', 'list']) { await page.click('#home'); await page.click(`.game[data-g="${g}"]`); await page.waitForTimeout(150); }
-  await page.click('#home');
+  for (const g of ['flash', 'pairs', 'cloze', 'list']) { await page.click(`.game[data-g="${g}"]`); await page.waitForTimeout(150); await page.click('#home'); }
   // Mode sombre
   await page.emulateMedia({ colorScheme: 'dark' }); await page.click('.game[data-g="stats"]');
   await page.screenshot({ path: shots + '/6-progres-sombre.png', fullPage: true });
@@ -106,6 +108,8 @@ const fail = m => { console.error('ÉCHEC : ' + m); process.exit(1); };
   await page.click('#lang button[data-v="all"]');
   await page.fill('#q', 'evening'); const qc = await page.textContent('#count'); console.log('Recherche « evening » :', qc); if (!/^1 passage /.test(qc)) fail('recherche');
   await page.fill('#q', '');
+  const rem = await page.$$eval('.book', s => { const b = s.find(x => /Remains of the Day/.test(x.querySelector('h2').textContent)); return [...b.querySelectorAll('.quote')].map(q => q.textContent.slice(0, 12)); });
+  console.log('Ordre dans le livre :', rem.join(' | ')); if (!/evening/.test(rem[0])) fail('ordre par chapitre');
   await page.reload(); await page.waitForSelector('#app:not([hidden]) .ann');
   console.log('Après rechargement :', await page.textContent('#count'));
   console.log('TOUS LES TESTS PASSENT');
