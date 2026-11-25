@@ -37,7 +37,7 @@ import (
 )
 
 // Renseignée à la compilation (build.sh) : -X main.versionStr=N
-var versionStr = "2"
+var versionStr = "3"
 
 func version() int { n, _ := strconv.Atoi(versionStr); return n }
 
@@ -51,6 +51,7 @@ type Note struct {
 	C  int64   `json:"c,omitempty"`
 	B  string  `json:"b"`
 	A  string  `json:"a,omitempty"`
+	L  string  `json:"l,omitempty"` // langue du livre d'après la Kobo (fr, en…)
 }
 
 type Config struct {
@@ -135,16 +136,16 @@ func readConfig(path string) (Config, error) {
 
 // ---------- lecture de la base de la Kobo ----------
 
-func readNotes(dbPath string) ([]Note, error) {
-	// copie d'abord la base (et son journal WAL s'il existe) : la liseuse peut l'avoir ouverte
+// openCopy copie la base (et son journal WAL s'il existe) : la liseuse peut l'avoir ouverte.
+func openCopy(dbPath string) (*sql.DB, func(), error) {
 	tmpDir, err := os.MkdirTemp("", "motskobo")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	defer os.RemoveAll(tmpDir)
 	tmp := filepath.Join(tmpDir, "KoboReader.sqlite")
 	if err := copyFile(dbPath, tmp); err != nil {
-		return nil, err
+		os.RemoveAll(tmpDir)
+		return nil, nil, err
 	}
 	for _, suf := range []string{"-wal", "-shm"} {
 		if _, err := os.Stat(dbPath + suf); err == nil {
@@ -153,9 +154,26 @@ func readNotes(dbPath string) ([]Note, error) {
 	}
 	db, err := sql.Open("sqlite", tmp)
 	if err != nil {
+		os.RemoveAll(tmpDir)
+		return nil, nil, err
+	}
+	return db, func() { db.Close(); os.RemoveAll(tmpDir) }, nil
+}
+
+func shortLang(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	if len(s) >= 2 && (s[:2] == "fr" || s[:2] == "en") {
+		return s[:2]
+	}
+	return ""
+}
+
+func readNotes(dbPath string) ([]Note, error) {
+	db, cleanup, err := openCopy(dbPath)
+	if err != nil {
 		return nil, err
 	}
-	defer db.Close()
+	defer cleanup()
 	cols := tableCols(db, "Bookmark")
 	if !cols["text"] {
 		return nil, errors.New("table Bookmark introuvable")
@@ -171,9 +189,13 @@ func readNotes(dbPath string) ([]Note, error) {
 	if cc["volumeindex"] && cols["contentid"] {
 		chap = "(SELECT ch.VolumeIndex FROM content ch WHERE ch.ContentType<>6 AND (ch.ContentID=b.ContentID OR ch.ContentID=replace(b.ContentID,'!','!!')) LIMIT 1)"
 	}
-	q := fmt.Sprintf(`SELECT b.BookmarkID, IFNULL(b.Text,''), IFNULL(%s,''), IFNULL(%s,''), IFNULL(%s,0), IFNULL(%s,''), IFNULL(%s,0), IFNULL(%s,'false'), IFNULL(b.VolumeID,''), IFNULL(c.Title,''), IFNULL(c.Attribution,''), %s
+	lang := "''"
+	if cc["language"] {
+		lang = "IFNULL(c.Language,'')"
+	}
+	q := fmt.Sprintf(`SELECT b.BookmarkID, IFNULL(b.Text,''), IFNULL(%s,''), IFNULL(%s,''), IFNULL(%s,0), IFNULL(%s,''), IFNULL(%s,0), IFNULL(%s,'false'), IFNULL(b.VolumeID,''), IFNULL(c.Title,''), IFNULL(c.Attribution,''), %s, %s
 	  FROM Bookmark b LEFT JOIN content c ON c.ContentID=b.VolumeID AND c.ContentType=6`,
-		col("Annotation", "NULL"), col("DateCreated", "NULL"), col("ChapterProgress", "0"), col("Type", "''"), col("Color", "0"), col("Hidden", "'false'"), chap)
+		col("Annotation", "NULL"), col("DateCreated", "NULL"), col("ChapterProgress", "0"), col("Type", "''"), col("Color", "0"), col("Hidden", "'false'"), chap, lang)
 	rows, err := db.Query(q)
 	if err != nil {
 		return nil, err
@@ -184,9 +206,11 @@ func readNotes(dbPath string) ([]Note, error) {
 		var n Note
 		var typ, hidden, vol string
 		var ch sql.NullInt64
-		if err := rows.Scan(&n.ID, &n.T, &n.N, &n.D, &n.P, &typ, &n.C, &hidden, &vol, &n.B, &n.A, &ch); err != nil {
+		var lg string
+		if err := rows.Scan(&n.ID, &n.T, &n.N, &n.D, &n.P, &typ, &n.C, &hidden, &vol, &n.B, &n.A, &ch, &lg); err != nil {
 			return nil, err
 		}
+		n.L = shortLang(lg)
 		n.T, n.N = strings.TrimSpace(n.T), strings.TrimSpace(n.N)
 		if hidden == "true" || typ == "dogear" || (n.T == "" && n.N == "") {
 			continue
@@ -373,6 +397,187 @@ func waitOnline(api string, tries int) bool {
 	return false
 }
 
+// ---------- livres et temps de lecture ----------
+
+// Book : un livre commencé, avec sa progression. La Kobo ne garde qu'un total de temps de lecture par livre.
+type Book struct {
+	ID string  `json:"id"`
+	T  string  `json:"t"`
+	A  string  `json:"a,omitempty"`
+	P  float64 `json:"p"`           // pourcentage lu
+	S  int     `json:"s"`           // 0 non lu, 1 en cours, 2 terminé
+	Sp int64   `json:"sp"`          // secondes de lecture au total
+	D  string  `json:"d,omitempty"` // dernière lecture
+	L  string  `json:"l,omitempty"`
+}
+
+func readBooks(dbPath string) ([]Book, error) {
+	db, cleanup, err := openCopy(dbPath)
+	if err != nil {
+		return nil, err
+	}
+	defer cleanup()
+	cols := tableCols(db, "content")
+	sel := func(name, def string) string {
+		if cols[strings.ToLower(name)] {
+			return "IFNULL(" + name + "," + def + ")"
+		}
+		return def
+	}
+	rows, err := db.Query(fmt.Sprintf(`SELECT ContentID, IFNULL(Title,''), IFNULL(Attribution,''), %s, %s, %s, %s, %s FROM content WHERE ContentType=6 AND IFNULL(Title,'')<>''`,
+		sel("___PercentRead", "0"), sel("ReadStatus", "0"), sel("TimeSpentReading", "0"), sel("DateLastRead", "''"), sel("Language", "''")))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Book
+	for rows.Next() {
+		var b Book
+		var lg string
+		if err := rows.Scan(&b.ID, &b.T, &b.A, &b.P, &b.S, &b.Sp, &b.D, &lg); err != nil {
+			return nil, err
+		}
+		b.L = shortLang(lg)
+		if b.S > 0 || b.P > 0 || b.Sp > 0 || b.D != "" { // seulement les livres commencés
+			out = append(out, b)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].D > out[j].D })
+	return out, rows.Err()
+}
+
+// Reading : temps de lecture par jour, reconstitué en regardant le compteur de la Kobo chaque minute.
+type Reading struct {
+	Since string           `json:"since"`
+	Days  map[string]int64 `json:"days"`  // secondes lues, par jour
+	Hours [24]int64        `json:"hours"` // secondes lues, par heure de la journée
+	Spent map[string]int64 `json:"spent"` // dernier compteur vu, par livre
+}
+
+func loadReading(dir string) *Reading {
+	r := &Reading{Days: map[string]int64{}, Spent: map[string]int64{}}
+	if b, err := os.ReadFile(filepath.Join(dir, "lecture.json")); err == nil {
+		json.Unmarshal(b, r)
+	}
+	if r.Days == nil {
+		r.Days = map[string]int64{}
+	}
+	if r.Spent == nil {
+		r.Spent = map[string]int64{}
+	}
+	return r
+}
+
+func (r *Reading) save(dir string) {
+	// on ne garde que les 400 derniers jours
+	if len(r.Days) > 400 {
+		keys := make([]string, 0, len(r.Days))
+		for k := range r.Days {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys[:len(keys)-400] {
+			delete(r.Days, k)
+		}
+	}
+	b, _ := json.Marshal(r)
+	tmp := filepath.Join(dir, "lecture.json.tmp")
+	if os.WriteFile(tmp, b, 0644) == nil {
+		os.Rename(tmp, filepath.Join(dir, "lecture.json"))
+	}
+}
+
+// public : ce qui part vers l'appli (sans les compteurs internes)
+func (r *Reading) public() map[string]any {
+	return map[string]any{"since": r.Since, "days": r.Days, "hours": r.Hours}
+}
+
+// counters lit le temps de lecture de chaque livre : d'abord directement (lecture seule, rapide), sinon sur une copie.
+func counters(dbPath string) (map[string]int64, error) {
+	read := func(db *sql.DB) (map[string]int64, error) {
+		if !tableCols(db, "content")["timespentreading"] {
+			return nil, errors.New("la base ne compte pas le temps de lecture")
+		}
+		rows, err := db.Query(`SELECT ContentID, IFNULL(TimeSpentReading,0) FROM content WHERE ContentType=6 AND IFNULL(TimeSpentReading,0)>0`)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		m := map[string]int64{}
+		for rows.Next() {
+			var id string
+			var s int64
+			if err := rows.Scan(&id, &s); err != nil {
+				return nil, err
+			}
+			m[id] = s
+		}
+		return m, rows.Err()
+	}
+	if db, err := sql.Open("sqlite", "file:"+dbPath+"?mode=ro&_pragma=busy_timeout(2000)"); err == nil {
+		m, err := read(db)
+		db.Close()
+		if err == nil {
+			return m, nil
+		}
+	}
+	db, cleanup, err := openCopy(dbPath)
+	if err != nil {
+		return nil, err
+	}
+	defer cleanup()
+	return read(db)
+}
+
+// sample compare les compteurs à ceux de la minute précédente et attribue la différence au jour et à l'heure en cours.
+func (r *Reading) sample(dir, dbPath string, now time.Time) error {
+	cur, err := counters(dbPath)
+	if err != nil {
+		return err
+	}
+	changed := false
+	if r.Since == "" {
+		r.Since, changed = now.Format("2006-01-02"), true
+	}
+	for id, c := range cur {
+		prev, seen := r.Spent[id]
+		if !seen || c < prev { // premier passage, ou livre remis à zéro : simple point de départ
+			r.Spent[id], changed = c, true
+			continue
+		}
+		if d := c - prev; d > 0 && d <= 3600 {
+			r.Days[now.Format("2006-01-02")] += d
+			r.Hours[now.Hour()] += d
+			r.Spent[id], changed = c, true
+		} else if d > 3600 {
+			r.Spent[id], changed = c, true
+		}
+	}
+	if changed {
+		r.save(dir)
+	}
+	return nil
+}
+
+// safely exécute f sans jamais faire tomber le démon.
+var lastErr = map[string]string{}
+
+func safely(what string, f func() error) {
+	defer func() {
+		if r := recover(); r != nil {
+			logf("%s : incident évité (%v)", what, r)
+		}
+	}()
+	if err := f(); err != nil {
+		if lastErr[what] != err.Error() { // une même erreur n'est écrite qu'une fois
+			lastErr[what] = err.Error()
+			logf("%s : %v", what, err)
+		}
+	} else {
+		delete(lastErr, what)
+	}
+}
+
 // ---------- un envoi ----------
 
 type syncer struct {
@@ -380,6 +585,31 @@ type syncer struct {
 	dir  string
 	db   string
 	boot time.Time
+}
+
+func (s *syncer) payload(notes []Note, why string) map[string]any {
+	p := map[string]any{
+		"notes":   notes,
+		"updated": time.Now().UTC().Format(time.RFC3339),
+		"kobo":    map[string]any{"v": version(), "boot": s.boot.UTC().Format(time.RFC3339), "why": why},
+	}
+	if books, err := readBooks(s.db); err == nil && len(books) > 0 {
+		p["books"] = books
+	}
+	if r := loadReading(s.dir); r.Since != "" {
+		p["reading"] = r.public()
+	}
+	return p
+}
+
+// safeSync : un envoi qui rencontre un cas imprévu est noté dans le journal mais ne fait jamais tomber le démon.
+func (s *syncer) safeSync(force bool, why string) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("incident évité : %v", r)
+		}
+	}()
+	return s.sync(force, why)
 }
 
 func (s *syncer) sync(force bool, why string) error {
@@ -395,11 +625,7 @@ func (s *syncer) sync(force bool, why string) error {
 		logf("%d annotations, rien de nouveau (%s)", len(notes), why)
 		return nil
 	}
-	payload, _ := json.Marshal(map[string]any{
-		"notes":   notes,
-		"updated": time.Now().UTC().Format(time.RFC3339),
-		"kobo":    map[string]any{"v": version(), "boot": s.boot.UTC().Format(time.RFC3339), "why": why},
-	})
+	payload, _ := json.Marshal(s.payload(notes, why))
 	box, err := seal(payload, s.c.Key)
 	if err != nil {
 		return err
@@ -453,7 +679,10 @@ func dbStamp(db string) string {
 	return sb.String()
 }
 
-var failedUpdate int
+var (
+	failedUpdate int
+	lockFile     *os.File
+)
 
 func daemon(dir, db string) {
 	lockPath := os.Getenv("MOTSKOBO_LOCK")
@@ -464,6 +693,7 @@ func daemon(dir, db string) {
 		if syscall.Flock(int(lf.Fd()), syscall.LOCK_EX|syscall.LOCK_NB) != nil {
 			return // un autre démon tourne déjà ; le verrou disparaît tout seul si le processus meurt
 		}
+		lockFile = lf // à garder : si Go referme le fichier, le verrou saute
 	}
 	poll := envDur("MOTSKOBO_POLL", 20*time.Second)
 	settle := envDur("MOTSKOBO_SETTLE", 12*time.Second)
@@ -471,6 +701,10 @@ func daemon(dir, db string) {
 	heartbeat := envDur("MOTSKOBO_HEARTBEAT", 60*time.Minute)
 	updEvery := envDur("MOTSKOBO_UPDATE", 6*time.Hour)
 	retry := envDur("MOTSKOBO_RETRY", 60*time.Second)
+	sampleEvery := envDur("MOTSKOBO_SAMPLE", 60*time.Second)
+	reading := loadReading(dir)
+	var lastSample time.Time
+	sampled := false
 
 	logf("démon v%d démarré", version())
 	s := &syncer{dir: dir, db: db, boot: time.Now()}
@@ -497,6 +731,17 @@ func daemon(dir, db string) {
 		}
 		s.c = c
 		now := time.Now()
+		if now.Sub(lastSample) >= sampleEvery {
+			lastSample = now
+			safely("lecture", func() error {
+				err := reading.sample(dir, db, now)
+				if err == nil && !sampled {
+					sampled = true
+					logf("temps de lecture : suivi démarré")
+				}
+				return err
+			})
+		}
 		if !isOnline() {
 			wasOnline = false
 			time.Sleep(poll)
@@ -519,7 +764,7 @@ func daemon(dir, db string) {
 				reason, force = "contrôle", true
 			}
 			if reason != "" {
-				if err := s.sync(force, reason); err != nil {
+				if err := s.safeSync(force, reason); err != nil {
 					logf("ERREUR : %v", err)
 					nextTry = now.Add(retry)
 				} else {
@@ -644,8 +889,8 @@ func runOnce(dir, dbPath, out string, force bool, tries int) error {
 		if err != nil {
 			return err
 		}
-		payload, _ := json.Marshal(map[string]any{"notes": notes, "updated": time.Now().UTC().Format(time.RFC3339),
-			"kobo": map[string]any{"v": version(), "why": "test"}})
+		s := &syncer{c: c, dir: dir, db: dbPath, boot: time.Now()}
+		payload, _ := json.Marshal(s.payload(notes, "test"))
 		box, err := seal(payload, c.Key)
 		if err != nil {
 			return err

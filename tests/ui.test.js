@@ -44,8 +44,25 @@ const bad = s => /&amp;|&#|&lt;|\[object|undefined|NaN|\bnull\b|\{\}|\[\]/.test(
   const order = await p.$$eval('.bt', h => h.map(x => x.firstChild.textContent)); console.log('Livres :', order.join(' | '));
   console.log('Bandeau :', /Annotations en retard/.test(await text()) ? 'affiché' : 'absent');
 
-  // 4. progrès, réglages
+  // 4. progrès : temps de lecture envoyé par la Kobo, livres, fiche livre
   await p.click('.tab[data-t="progress"]'); await p.waitForSelector('.heat'); await shot('5-progres');
+  const pr = await text(); if (!/Lecture/.test(pr) || !/25 min/.test(pr) || !/2\s+jours de suite/.test(pr)) fail('temps de lecture absent ou faux');
+  if ((await p.$$('.bars30 i')).length !== 30) fail('graphique de 30 jours'); if (!/62 %/.test(pr) || !/restantes/.test(pr) || !/1 livre terminé/.test(pr)) fail('livres en cours'); console.log('Lecture : OK (25 min aujourd’hui, série de 2 jours, temps restant estimé)');
+  await p.click('.tab[data-t="notes"]'); await p.waitForSelector('.bt'); await p.click('.bt[data-b="The Remains of the Day"]'); await p.waitForSelector('.sheet.on'); await p.waitForTimeout(600);
+  const bt = await p.evaluate(() => document.querySelector('.sheet.on').innerText); if (!/62 %/.test(bt) || !/Temps restant/.test(bt) || !/Passages surlignés/.test(bt)) fail('fiche livre : ' + bt.slice(0, 160)); await shot('12-livre'); console.log('Fiche livre : OK');
+  await p.click('.sheet.on [data-sx]'); await p.waitForTimeout(500);
+
+  // 4b. relecture des passages surlignés (comme la relecture quotidienne de Readwise)
+  await p.click('.tab[data-t="today"]'); await p.waitForSelector('.memo .mq'); console.log('Souvenir du jour :', (await p.textContent('.memo .mq')).slice(0, 50) + '…'); await shot('11-souvenir');
+  await p.click('[data-a="passages"]'); await p.waitForSelector('.cover.on .passage'); await p.waitForTimeout(400); await shot('11-relecture');
+  const nPass = +(await p.textContent('.cover.on .slot')).split('/')[1]; console.log('Passages à relire :', nPass); if (nPass < 1 || nPass > 5) fail('nombre de passages : ' + nPass);
+  for (let i = 0; i < nPass; i++) { await p.waitForSelector('.cover.on .passage'); const t = await p.evaluate(() => document.querySelector('.cover.on .passage').innerText); if (bad(t)) fail('texte parasite (relecture)'); await p.keyboard.press('2'); await p.waitForTimeout(150); }
+  await p.waitForSelector('.cover.on .result'); await p.click('.cover.on [data-x2]'); await p.waitForTimeout(650);
+  await p.waitForSelector('.memo'); if (!/relus pour aujourd/.test(await p.textContent('.memo'))) fail('souvenirs non marqués comme relus');
+  console.log('Relecture : OK');
+
+  // 4c. réglages
+  await p.click('.tab[data-t="progress"]');
   await p.click('[data-a="settings"]'); await p.waitForSelector('.sheet.on'); await p.waitForTimeout(600); await shot('6-reglages');
   const href = await p.getAttribute('.sheet.on #rlink', 'href'); if (href !== 'rappels/1900.ics') fail('lien de rappel : ' + href);
   await p.selectOption('.sheet.on #rtime', '08:30'); if ((await p.getAttribute('.sheet.on #rlink', 'href')) !== 'rappels/0830.ics') fail('heure du rappel');

@@ -3,15 +3,17 @@ Usage : python3 tests/make_kobo_db.py <fichier>"""
 import sqlite3, sys
 db = sqlite3.connect(sys.argv[1])
 db.executescript("""
-CREATE TABLE content (ContentID TEXT, ContentType INTEGER, Title TEXT, Attribution TEXT, VolumeIndex INTEGER);
+CREATE TABLE content (ContentID TEXT, ContentType INTEGER, Title TEXT, Attribution TEXT, VolumeIndex INTEGER, ___PercentRead REAL, ReadStatus INTEGER, TimeSpentReading INTEGER, DateLastRead TEXT, Language TEXT);
 CREATE TABLE Bookmark (BookmarkID TEXT, VolumeID TEXT, ContentID TEXT, Text TEXT, Annotation TEXT,
   DateCreated TEXT, ChapterProgress REAL, Hidden TEXT, Type TEXT, Color INTEGER);
 """)
 books = [("file:///mnt/onboard/ishiguro/remains.kepub.epub", "The Remains of the Day", "Kazuo Ishiguro"),
          ("file:///mnt/onboard/camus/etranger.kepub.epub", "L'Étranger", "Albert Camus"),
          ("file:///mnt/onboard/perec/les_choses.kepub.epub", None, None)]
-db.executemany("INSERT INTO content VALUES (?,6,?,?,-1)", [(b, t, a) for b, t, a in books if t])
-db.executemany("INSERT INTO content VALUES (?,9,'','',?)", [(books[0][0] + "!!ch" + str(i), i) for i in (1, 12)])
+reading = {books[0][0]: (62, 1, 7200, "2026-11-24T21:00:00Z", "en-GB"), books[1][0]: (100, 2, 14400, "2026-11-15T09:30:00Z", "fr")}
+db.executemany("INSERT INTO content (ContentID, ContentType, Title, Attribution, VolumeIndex, ___PercentRead, ReadStatus, TimeSpentReading, DateLastRead, Language) VALUES (?,6,?,?,-1,?,?,?,?,?)",
+               [(b, t, a, *reading[b]) for b, t, a in books if t])
+db.executemany("INSERT INTO content (ContentID, ContentType, Title, Attribution, VolumeIndex) VALUES (?,9,'','',?)", [(books[0][0] + "!!ch" + str(i), i) for i in (1, 12)])
 rows = [
  ("1", books[0][0], "What is the point in worrying oneself too much about what one could or could not have done to control the course one's life took?", "", "2026-10-02T21:14:00Z", 0.81, "false", "highlight", 0),
  ("2", books[0][0], "The evening's the best part of the day.", "Phrase clé du livre, à relire à la fin.", "2026-10-05T22:01:00Z", 0.93, "false", "note", 2),

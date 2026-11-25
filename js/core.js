@@ -12,12 +12,12 @@ const DAY = M.DAY = 864e5, MIN = 6e4;
 
 /* ---------- état ---------- */
 const S = M.S = {
-  kw: [], all: [], words: [], lang: 'en', notes: [], prog: {}, st: { xp: 0, days: {}, best: {}, fresh: {} },
+  kw: [], all: [], words: [], lang: 'en', notes: [], prog: {}, st: { xp: 0, days: {}, best: {}, fresh: {}, pfresh: {} }, reading: null, books: [],
   set: { auto: false, rate: 0.9, voice: {}, remind: [] },
   sync: { words: null, notes: null, kobo: null, checked: 0, busy: false, wordsErr: '', notesErr: '', notesState: 'none' },
   keyState: 'none', tab: 'today'
 };
-M.GOAL = 200; M.NEW_DAY = 15;
+M.GOAL = 200; M.NEW_DAY = 15; M.PASS_DAY = 5;
 
 /* ---------- dates ---------- */
 const ymd = M.ymd = t => { const d = new Date(t); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
@@ -29,7 +29,7 @@ M.fmtDay = d => { const t = Date.parse(String(d).slice(0, 10) + 'T12:00:00'); if
   const x = new Date(t); return x.getDate() + (x.getDate() === 1 ? 'er ' : ' ') + MOIS[x.getMonth()] + (x.getFullYear() !== new Date().getFullYear() ? ' ' + x.getFullYear() : ''); };
 M.fmtDate = d => { const t = Date.parse(d); if (isNaN(t)) return ''; const x = new Date(t); return x.getDate() + (x.getDate() === 1 ? 'er ' : ' ') + MOIS[x.getMonth()] + ' ' + x.getFullYear(); };
 M.hm = t => new Date(t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-M.ago = t => { if (!t || isNaN(t)) return ''; const s = (Date.now() - t) / 1000; if (s < 90) return 'à l’instant'; if (s < 3600) return 'il y a ' + Math.round(s / 60) + ' min'; if (s < 86400) return 'il y a ' + Math.round(s / 3600) + ' h'; const d = Math.round(s / 86400); return d === 1 ? 'hier' : 'il y a ' + d + ' jours'; };
+M.ago = t => { if (!t || isNaN(t)) return ''; const s = (Date.now() - t) / 1000; if (s < 90) return 'à l’instant'; if (s < 3600) return 'il y a ' + Math.round(s / 60) + ' min'; if (s < 86400) return 'il y a ' + Math.round(s / 3600) + ' h'; const d = Math.round(s / 86400); return d === 1 ? 'hier' : d < 60 ? 'il y a ' + d + ' jours' : 'il y a ' + Math.round(d / 30) + ' mois'; };
 M.parseT = s => { const t = Date.parse(s); return isNaN(t) ? null : t; };
 
 /* ---------- nettoyage des textes : entités HTML, caractères invisibles, espaces ---------- */
@@ -194,21 +194,21 @@ async function loadWords() {
 
 /* ---------- annotations ---------- */
 function normNote(x) {
-  return { id: String(x.id), t: M.clean(x.t), n: M.clean(x.n, true), d: String(x.d || ''), p: +x.p || 0, ch: x.ch == null ? null : +x.ch, c: +x.c || 0, b: M.clean(x.b) || 'Livre sans titre', a: M.clean(x.a), l: '' };
+  return { id: String(x.id), t: M.clean(x.t), n: M.clean(x.n, true), d: String(x.d || ''), p: +x.p || 0, ch: x.ch == null ? null : +x.ch, c: +x.c || 0, b: M.clean(x.b) || 'Livre sans titre', a: M.clean(x.a), l: x.l === 'fr' || x.l === 'en' ? x.l : '' };
 }
 M.setNotes = items => {
   const ns = items.filter(x => x && (x.t || x.n)).map(normNote).filter(n => n.t || n.n), byBook = {};
   for (const n of ns) (byBook[n.b] = byBook[n.b] || []).push(n.t + ' ' + n.n);
   const bl = {}; for (const [b, ts] of Object.entries(byBook)) bl[b] = langOf(ts.join(' ')) || 'en';
-  for (const n of ns) n.l = bl[n.b];
+  for (const n of ns) n.l = n.l || bl[n.b];
   S.notes = ns; M.rebuildAll();
 };
 async function loadNotes() {
   const key = M.getKey(); if (!key) return;
   try {
     const d = await decrypt(await fetchBox('notes.enc'), key);
-    M.setNotes(d.notes || []); S.sync.notes = d.updated || null; S.sync.kobo = d.kobo || null; S.sync.notesErr = ''; S.sync.notesState = 'ok';
-    M.idbSet('notes2', { notes: d.notes || [], updated: d.updated || null, kobo: d.kobo || null });
+    M.setNotes(d.notes || []); M.setReading(d.reading, d.books); S.sync.notes = d.updated || null; S.sync.kobo = d.kobo || null; S.sync.notesErr = ''; S.sync.notesState = 'ok';
+    M.idbSet('notes2', { notes: d.notes || [], updated: d.updated || null, kobo: d.kobo || null, reading: d.reading || null, books: d.books || [] });
   } catch (e) {
     if (e.code === 404) { S.sync.notesState = S.notes.length ? 'ok' : 'absent'; }
     else if (e.message === 'cle') { S.sync.notesErr = 'cle'; }
@@ -217,7 +217,7 @@ async function loadNotes() {
 }
 M.loadCachedNotes = async () => {
   const c = await M.idbGet('notes2');
-  if (c && c.notes) { M.setNotes(c.notes); S.sync.notes = c.updated || null; S.sync.kobo = c.kobo || null; S.sync.notesState = 'ok'; return; }
+  if (c && c.notes) { M.setNotes(c.notes); M.setReading(c.reading, c.books); S.sync.notes = c.updated || null; S.sync.kobo = c.kobo || null; S.sync.notesState = 'ok'; return; }
   const old = await M.idbGet('annotations');   // ancien format (page « Mes annotations » d'avant)
   if (old && old.items) { M.setNotes(old.items); S.sync.notesState = 'ok'; }
 };
@@ -286,6 +286,31 @@ M.nextDue = () => { const ds = S.words.map(P).filter(p => p.reps && p.due > Date
 M.weak = () => { const a = M.shuffle(S.words); a.sort((x, y) => M.lvl(P(x)) - M.lvl(P(y))); return a; };
 M.pick = (n = 15) => { const a = M.weak(); return a[Math.floor(Math.random() * Math.min(n, a.length))]; };
 
+/* ---------- livres et temps de lecture (envoyés par la Kobo) ---------- */
+M.setReading = (reading, books) => {
+  S.reading = reading && typeof reading === 'object' ? { since: reading.since || '', days: M.obj(reading.days), hours: Array.isArray(reading.hours) ? reading.hours : [] } : null;
+  S.books = (Array.isArray(books) ? books : []).map(x => ({ id: String(x.id), t: M.clean(x.t), a: M.clean(x.a), p: +x.p || 0, s: +x.s || 0, sp: +x.sp || 0, d: String(x.d || ''), l: x.l || '' })).filter(b => b.t);
+};
+M.dur = s => { s = Math.max(0, Math.round(s / 60)); return s < 60 ? s + ' min' : Math.floor(s / 60) + ' h ' + String(s % 60).padStart(2, '0'); };
+M.bookOf = title => S.books.find(b => b.t === title) || null;
+M.timeLeft = b => b && b.s !== 2 && b.p >= 3 && b.sp >= 600 ? b.sp * (100 - b.p) / b.p : 0;
+M.readStreak = () => { const d = S.reading ? S.reading.days : {}; let n = 0; const x = new Date(); if ((d[M.today()] || 0) < 300) x.setDate(x.getDate() - 1); while ((d[ymd(x)] || 0) >= 300) { n++; x.setDate(x.getDate() - 1); } return n; };
+
+/* ---------- relecture des passages surlignés (comme la « relecture quotidienne » de Readwise) ---------- */
+const pkey = n => '¶' + n.id;
+const hstr = s => { let h = 7; for (const c of s) h = (h * 31 + c.charCodeAt(0)) | 0; return h; };
+M.isPassage = n => !!(n.n || n.t.split(/\s+/).length >= 5);
+M.passages = () => S.notes.filter(M.isPassage);
+M.PP = n => M.P({ w: pkey(n) });
+M.passQueue = () => {
+  const now = Date.now(), ps = M.passages();
+  const rev = ps.filter(n => { const p = M.PP(n); return p.reps && p.due <= now; }).sort((a, b) => M.PP(a).due - M.PP(b).due);
+  const fresh = ps.filter(n => !M.PP(n).reps).map(n => [n, hstr(n.id + M.today())]).sort((a, b) => a[1] - b[1]).map(x => x[0]).slice(0, Math.max(0, M.PASS_DAY - (S.st.pfresh[M.today()] || 0)));
+  return [...rev, ...fresh];
+};
+M.passGrade = (n, g) => { const p = M.PP(n); if (!p.reps) { S.st.pfresh[M.today()] = (S.st.pfresh[M.today()] || 0) + 1; M.saveStats(); } S.prog[pkey(n)] = M.schedule(p, g); M.saveProg(); };
+M.nextPass = () => { const ds = M.passages().map(M.PP).filter(p => p.reps && p.due > Date.now()).map(p => p.due); return ds.length ? Math.min(...ds) : 0; };
+
 /* ---------- XP, niveaux, série ---------- */
 M.level = xp => Math.floor(Math.sqrt(xp / 40)) + 1;
 M.lvlXP = l => 40 * (l - 1) ** 2;
@@ -301,7 +326,8 @@ M.importCode = async code => {
   const d = JSON.parse(new TextDecoder().decode(b)); if (!d || d.v !== 1) throw 0; let k = 0;
   for (const [w, p] of Object.entries(M.obj(d.prog))) { const mine = S.prog[w]; if (!mine || (p.last || 0) > (mine.last || 0) || (mine.s == null && p.s != null)) { S.prog[w] = p; k++; } }
   const s = M.obj(d.st); S.st.xp = Math.max(S.st.xp, s.xp || 0); for (const [x, v] of Object.entries(M.obj(s.days))) S.st.days[x] = Math.max(S.st.days[x] || 0, v);
-  for (const [x, v] of Object.entries(M.obj(s.fresh))) S.st.fresh[x] = Math.max(S.st.fresh[x] || 0, v); const bs = M.obj(s.best);
+  for (const [x, v] of Object.entries(M.obj(s.fresh))) S.st.fresh[x] = Math.max(S.st.fresh[x] || 0, v);
+  for (const [x, v] of Object.entries(M.obj(s.pfresh))) S.st.pfresh[x] = Math.max(S.st.pfresh[x] || 0, v); const bs = M.obj(s.best);
   if (bs.flash) S.st.best.flash = Math.max(S.st.best.flash || 0, bs.flash); if (bs.pairs) S.st.best.pairs = Math.min(S.st.best.pairs || 1e9, bs.pairs);
   M.saveProg(); M.saveStats(); return k;
 };
@@ -367,7 +393,7 @@ M.icsDaily = (times, name) => {
 /* ---------- démarrage des données ---------- */
 M.init = async () => {
   S.prog = M.obj(M.local('prog')); const ls = M.obj(M.local('stats'));
-  S.st = { xp: ls.xp || 0, days: M.obj(ls.days), best: M.obj(ls.best), fresh: M.obj(ls.fresh) };
+  S.st = { xp: ls.xp || 0, days: M.obj(ls.days), best: M.obj(ls.best), fresh: M.obj(ls.fresh), pfresh: M.obj(ls.pfresh) };
   S.set = Object.assign({ auto: false, rate: 0.9, voice: {}, remind: [] }, M.obj(M.local('settings')));
   S.lang = M.local('lang') || 'en';
   const key = M.getKey(); if (key) { M.local('key', key); S.keyState = 'ok'; }

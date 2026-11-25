@@ -185,4 +185,26 @@ function typeGame(mode) {
 }
 M.games.write = () => { if (S.words.length < 2) { M.toast('Pas assez de mots'); return; } typeGame('write'); };
 M.games.dict = () => { if (S.words.length < 2) { M.toast('Pas assez de mots'); return; } typeGame('dict'); };
+
+/* ---------- Relecture des passages ---------- */
+M.games.passages = (list, title) => {
+  const queue = (list || M.passQueue()).slice(); if (!queue.length) { M.toast('Aucun passage à relire'); return; }
+  const total = queue.length; let done = 0, good = 0; const c = cover(title || 'Relecture');
+  function show() {
+    if (!queue.length) return finish();
+    const n = queue[0], p = M.PP(n), t = M.parseT(n.d); c.prog(done / total); c.right((done + 1) + ' / ' + total);
+    c.body.innerHTML = '<div class="passage"><div class="top"><span>' + esc(n.b) + '</span><span>' + esc(M.fmtDate(n.d)) + '</span></div><p class="pq">' + esc(n.t) + '</p>' +
+      (n.n ? '<div class="nn"><b>Ma note</b><p>' + esc(n.n) + '</p></div>' : '') + (t ? '<p class="pw">Surligné ' + esc(M.ago(t)) + '</p>' : '') + '</div>' +
+      '<div class="grades g3">' + [[2, 'À revoir'], [3, 'Retenu'], [4, 'Acquis']].map(([g, l]) => '<button class="grade g' + (g === 2 ? 2 : g === 3 ? 3 : 4) + '" data-g="' + g + '">' + l + '<small>' + M.ivl(M.schedule(p, g).s) + '</small></button>').join('') + '</div><p class="kbd">Clavier : 1 à 3</p>';
+    const go = g => { M.passGrade(n, g); done++; if (g >= 3) good++; M.gain(3); queue.shift(); show(); };
+    c.body.querySelectorAll('.grade').forEach(b => b.onclick = () => go(+b.dataset.g));
+    M.keyH = e => { if (/^[1-3]$/.test(e.key)) go(+e.key + 1); };
+  }
+  function finish() {
+    c.prog(1); c.right(''); M.keyH = null; const nx = M.nextPass();
+    c.body.innerHTML = '<div class="result"><div class="big-n">' + total + '</div><p class="muted">passage' + (total > 1 ? 's' : '') + ' relu' + (total > 1 ? 's' : '') + ' · ' + good + ' retenu' + (good > 1 ? 's' : '') + '</p><p class="muted">' + (nx ? 'Prochaine relecture ' + nextText(nx) + '.' : '') + '</p></div><button class="btn" data-x2>Terminé</button>';
+    c.body.querySelector('[data-x2]').onclick = () => c.close();
+  }
+  show();
+};
 })();

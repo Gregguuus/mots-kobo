@@ -57,6 +57,7 @@ function viewToday() {
       '<section class="hero"><div class="k">Révision du jour</div><div class="n">' + n + '<small>mot' + (n > 1 ? 's' : '') + '</small></div><p>Tes mots reviennent juste avant que tu les oublies. Quelques minutes suffisent.</p><button class="btn white" data-a="review">Commencer</button></section>' :
       '<section class="hero done"><div class="k">Révision du jour</div><div class="n">À jour</div><p>' + (next ? 'Prochaine révision ' + M.nextText(next) + '.' : 'Bravo, tout est revu.') + '</p><button class="btn white" data-a="more" style="color:#0a8a4a">Revoir 10 mots de plus</button></section>') :
       '<section class="empty card"><span>' + ico('book') + '</span><h2>Aucun mot pour l’instant</h2><p>Surligne des mots sur ta Kobo : ils apparaissent ici dès qu’elle se connecte au Wi-Fi.</p></section>') +
+    memoCard() +
     '<section class="stats3"><div class="ring"><svg viewBox="0 0 112 112" aria-hidden="true"><circle cx="56" cy="56" r="46" fill="none" stroke="var(--fill)" stroke-width="12"/><circle cx="56" cy="56" r="46" fill="none" stroke="var(--green)" stroke-width="12" stroke-linecap="round" stroke-dasharray="' + (C * g) + ' ' + C + '"/></svg><div class="mid"><b>' + Math.min(dt, M.GOAL) + '</b><span>/ ' + M.GOAL + ' XP</span></div></div>' +
     '<div class="col"><div class="stat"><span class="i" style="color:var(--orange)">' + ico('flame') + '</span><div><div class="v">' + st + '</div><div class="l">jour' + (st > 1 ? 's' : '') + ' de suite</div></div></div>' +
     '<div class="stat"><span class="i" style="color:var(--indigo)">' + ico('bolt') + '</span><div><div class="v">Niveau ' + l + '</div><div class="l">' + (b - xp) + ' XP avant le suivant</div></div></div></div></section></div>' +
@@ -109,7 +110,7 @@ const BOOKC = [0, 1, 2, 3];
 function notesList() {
   const r = notesFiltered(); if (!r.length) return '<div class="empty"><span>' + ico('search') + '</span><h2>Aucune annotation</h2><p>Aucun passage ne correspond à ces filtres.</p></div>';
   const groups = []; for (const x of r) { let g = groups[groups.length - 1]; if (!g || g.b !== x.b) groups.push(g = { b: x.b, a: x.a, items: [] }); g.items.push(x); }
-  return groups.map(g => '<h2 class="bt">' + esc(g.b) + '<small>' + esc(g.a) + (g.a ? ' · ' : '') + g.items.length + ' passage' + (g.items.length > 1 ? 's' : '') + '</small></h2>' +
+  return groups.map(g => '<h2 class="bt" data-a="book" data-b="' + esc(g.b) + '">' + esc(g.b) + '<small>' + esc(g.a) + (g.a ? ' · ' : '') + g.items.length + ' passage' + (g.items.length > 1 ? 's' : '') + '</small></h2>' +
     g.items.map(x => '<article class="nc"><span class="bar c' + (BOOKC.includes(x.c) ? x.c : 0) + '"></span>' + (x.t ? '<p class="q">' + hl(x.t, F.q) + '</p>' : '') +
       (x.n ? '<div class="nn"><b>Ma note</b><p>' + hl(x.n, F.q) + '</p></div>' : '') +
       '<footer><span>' + esc(M.fmtDate(x.d)) + '</span><span class="acts"><button class="icon-btn" data-a="ncopy" data-id="' + esc(x.id) + '" aria-label="Copier">' + ico('copy') + '</button><button class="icon-btn" data-a="nshare" data-id="' + esc(x.id) + '" aria-label="Partager">' + ico('share') + '</button></span></footer></article>').join('')).join('');
@@ -148,6 +149,43 @@ async function copyOrShare(text, how) {
   try { await navigator.clipboard.writeText(text); M.toast('Copié'); } catch (e) { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); try { document.execCommand('copy'); M.toast('Copié'); } catch (e2) { M.toast('Copie impossible'); } t.remove(); }
 }
 
+/* ---------- Souvenir du jour, lecture, fiche livre ---------- */
+const clip = (s, n) => s.length > n ? s.slice(0, n - 1).replace(/\s+\S*$/, '') + '…' : s;
+function memoCard() {
+  const ps = M.passages(); if (!ps.length) return '';
+  const q = M.passQueue(), nx = M.nextPass();
+  if (!q.length) return '<section class="memo"><div class="k">Souvenirs</div><p class="mb" style="font-size:15px">Tous tes passages sont relus pour aujourd’hui' + (nx ? '. Prochaine relecture ' + M.nextText(nx) : '') + '.</p></section>';
+  const n = q[0], t = M.parseT(n.d);
+  return '<section class="memo"><div class="k">Souvenir du jour</div><p class="mq">' + esc(clip(n.t, 220)) + '</p><div class="mb">' + esc(n.b) + (t ? ' · surligné ' + esc(M.ago(t)) : '') + '</div><button class="btn tint" data-a="passages">Relire ' + q.length + ' passage' + (q.length > 1 ? 's' : '') + '</button></section>';
+}
+function readingCards() {
+  const R = S.reading, B = S.books; if (!R && !B.length) return ''; let h = '';
+  if (R) {
+    const days = R.days, now = new Date(), key = i => { const d = new Date(now); d.setDate(d.getDate() - i); return M.ymd(d); };
+    const today = days[M.today()] || 0, week = [...Array(7)].map((_, i) => days[key(i)] || 0).reduce((a, b) => a + b, 0);
+    const bars = [...Array(30)].map((_, i) => days[key(29 - i)] || 0), max = Math.max(1, ...bars), st = M.readStreak(), any = Object.keys(days).length > 0;
+    h += '<section class="card"><h3>Lecture</h3><div class="kpis"><div class="kpi"><b>' + M.dur(today) + '</b><small>aujourd’hui</small></div><div class="kpi"><b>' + M.dur(week) + '</b><small>7 derniers jours</small></div><div class="kpi"><b>' + st + '</b><small>jour' + (st > 1 ? 's' : '') + ' de suite</small></div></div>' +
+      (any ? '<div class="bars30" style="margin-top:14px" role="img" aria-label="Temps de lecture des 30 derniers jours">' + bars.map(s => '<i class="' + (s ? '' : 'z') + '" style="height:' + Math.max(3, s / max * 90) + 'px" title="' + M.dur(s) + '"></i>').join('') + '</div><div class="axis"><span>il y a 30 jours</span><span>aujourd’hui</span></div>' :
+        '<p class="sub" style="margin-top:10px;font-size:14px">Le temps de lecture par jour se remplit à partir de maintenant : ta Kobo le mesure toutes les minutes' + (R.since ? ' (depuis le ' + esc(M.fmtDay(R.since)) + ')' : '') + '.</p>') + '</section>';
+  }
+  const cur = B.filter(b => b.s === 1 || (b.s !== 2 && b.p > 0 && b.p < 100)).slice(0, 6), done = B.filter(b => b.s === 2).length;
+  if (cur.length || done) h += '<section class="card"><h3>Livres</h3>' + cur.map(b => { const left = M.timeLeft(b);
+    return '<button class="bookrow" data-a="book" data-b="' + esc(b.t) + '"><div class="t">' + esc(b.t) + '</div><div class="minibar" style="margin:6px 0 4px"><i style="width:' + Math.min(100, b.p) + '%"></i></div><div class="s">' + Math.round(b.p) + ' %' + (b.sp ? ' · ' + M.dur(b.sp) + ' lues' : '') + (left ? ' · environ ' + M.dur(left) + ' restantes' : '') + '</div></button>'; }).join('') +
+    (done ? '<p class="sub" style="margin:10px 0 0;font-size:14px">' + done + ' livre' + (done > 1 ? 's' : '') + ' terminé' + (done > 1 ? 's' : '') + '</p>' : '') + '</section>';
+  return h;
+}
+function openBook(title) {
+  const ns = S.notes.filter(n => n.b === title), ws = S.all.filter(w => w.b === title), ps = ns.filter(M.isPassage), bk = M.bookOf(title);
+  const author = (ns.find(n => n.a) || {}).a || (bk && bk.a) || '', mast = ws.filter(w => M.mastered(M.P(w))).length, notes = ns.filter(n => n.n).length, left = M.timeLeft(bk);
+  sheet('Livre', () => '<div class="card center" style="padding:20px 16px"><p style="font:700 26px/1.2 var(--serif);margin:0;word-break:break-word">' + esc(title) + '</p>' + (author ? '<p class="sub">' + esc(author) + '</p>' : '') + '</div>' +
+    (bk ? '<div class="group">' + row({ t: 'Progression', r: Math.round(bk.p) + ' %' }) + (bk.sp ? row({ t: 'Temps de lecture', r: M.dur(bk.sp) }) : '') + (left ? row({ t: 'Temps restant estimé', r: 'environ ' + M.dur(left) }) : '') + (bk.d ? row({ t: 'Dernière lecture', r: esc(M.fmtDate(bk.d)) }) : '') + row({ t: 'État', r: bk.s === 2 ? 'Terminé' : bk.s === 1 ? 'En cours' : 'Commencé' }) + '</div>' : '') +
+    '<div class="group">' + row({ t: 'Passages surlignés', r: String(ns.length) }) + row({ t: 'Notes écrites', r: String(notes) }) + row({ t: 'Mots', r: ws.length ? ws.length + ' · ' + mast + ' maîtrisé' + (mast > 1 ? 's' : '') : '0' }) + '</div>' +
+    (ps.length ? '<button class="btn" data-sb="rev">Relire les passages de ce livre</button>' : '') + (ns.length ? '<button class="btn tint" data-sb="md">Copier tout en Markdown</button>' : ''),
+    sh => { const r = sh.querySelector('[data-sb="rev"]'), m = sh.querySelector('[data-sb="md"]');
+      if (r) r.onclick = () => { closeSheet(true); M.games.passages(M.shuffle(ps).slice(0, 15), 'Relecture'); };
+      if (m) m.onclick = () => copyOrShare(mdOf(ns.slice().sort((a, b) => String(a.d).localeCompare(String(b.d)))), 'copy'); });
+}
+
 /* ---------- Progrès ---------- */
 function viewProgress() {
   const ps = S.words.map(M.P), n = S.words.length || 1, news = ps.filter(p => !p.reps).length, mast = ps.filter(M.mastered).length, learn = S.words.length - news - mast;
@@ -164,9 +202,10 @@ function viewProgress() {
     '<section class="card"><h3>Ta mémoire</h3><div class="kpis"><div class="kpi"><b>' + mast + '</b><small>maîtrisés (3 semaines et plus)</small></div><div class="kpi"><b>' + learn + '</b><small>en cours</small></div><div class="kpi"><b>' + news + '</b><small>jamais vus</small></div></div>' +
     '<div class="stackbar" role="img" aria-label="' + mast + ' maîtrisés, ' + learn + ' en cours, ' + news + ' nouveaux"><i style="width:' + pc(mast) + ';background:var(--green)"></i><i style="width:' + pc(learn) + ';background:var(--orange)"></i></div>' +
     '<div class="legend"><span style="--c:var(--green)">Maîtrisés</span><span style="--c:var(--orange)">En cours</span><span style="--c:var(--fill2)">Nouveaux</span></div></section>' +
+    readingCards() +
     '<section class="card"><h3>Révisions des 7 prochains jours</h3><div class="fc7">' + fc.map(f => '<div><b>' + f.n + '</b><i style="height:' + Math.max(3, f.n / fmax * 80) + 'px"></i>' + esc(f.l) + '</div>').join('') + '</div><p class="sub" style="margin-top:8px;font-size:13px">En plus, au maximum ' + M.NEW_DAY + ' nouveaux mots par jour.</p></section>' +
     '<section class="card"><h3>Ton calendrier</h3><div class="heat-wrap"><div class="heat">' + cells.join('') + '</div></div><p class="sub" style="margin-top:8px;font-size:13px">' + active + ' jour' + (active > 1 ? 's' : '') + ' de jeu · ' + S.st.xp + ' XP · série actuelle ' + M.streak() + ' j</p></section>' +
-    (books.length ? '<section class="card"><h3>Par livre</h3>' + books.map(([b, v]) => '<div style="margin:10px 0"><div style="display:flex;justify-content:space-between;gap:10px;font-size:15px"><span>' + esc(b) + '</span><span class="muted">' + v.m + ' / ' + v.n + '</span></div><div class="minibar"><i style="width:' + (v.m / v.n * 100) + '%"></i></div></div>').join('') + '</section>' : '') +
+    (books.length ? '<section class="card"><h3>Par livre</h3>' + books.map(([b, v]) => '<button class="bookrow" data-a="book" data-b="' + esc(b) + '"><div style="display:flex;justify-content:space-between;gap:10px;font-size:15px"><span>' + esc(b) + '</span><span class="muted">' + v.m + ' / ' + v.n + ' maîtrisés</span></div><div class="minibar"><i style="width:' + (v.m / v.n * 100) + '%;background:var(--green)"></i></div></button>').join('') + '</section>' : '') +
     (hard.length ? '<section class="card"><h3>Tes mots les plus coriaces</h3><div class="group" style="background:none">' + hard.map(([w, p]) => row({ t: '<span class="word-t">' + esc(w.w) + '</span>', s: esc(mean(w)), r: 'oublié ' + p.lapses + ' fois' })).join('') + '</div><button class="btn tint" data-a="drill" style="margin-top:12px">Réviser ces mots</button></section>' : '') + '</div>';
 }
 
@@ -248,6 +287,8 @@ function openRemind() {
 /* ---------- actions ---------- */
 const A = {
   tab: el => setTab(el.dataset.t),
+  passages: () => M.games.passages(),
+  book: el => openBook(el.dataset.b),
   sync: async () => { M.toast('Synchronisation…'); await M.syncAll(); M.toast(S.sync.wordsErr ? 'Hors connexion' : 'À jour'); },
   settings: el => openSettings(el && el.dataset && el.dataset.s),
   lang: el => { M.pickLang(el.dataset.l); M.emit(); },

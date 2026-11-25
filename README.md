@@ -9,6 +9,9 @@ Ouvrir : https://gregguuus.github.io/mots-kobo/app.html
 - **Mots** : liste par jour, recherche, fiche avec prononciation. Anglais et français sont séparés (sélecteur en haut). Les mots arrivés sans traduction sont traduits automatiquement (MyMemory). Les mots français viennent des surlignages d'un seul mot dans les livres français, avec leur définition du Wiktionnaire.
 - **Annotations** : passages surlignés et notes, par livre, en texte noir avec une fine barre de couleur. Recherche, filtres langue / « avec note » / livre, copie, partage, export Markdown.
 - **Progrès** : mémoire, révisions à venir, calendrier, avancement par livre, mots coriaces.
+- **Relecture des passages** (comme la « relecture quotidienne » de Readwise, mais gratuite et pour les livres copiés à la main, que Readwise ne synchronise pas) : chaque jour, 5 passages surlignés reviennent, avec répétition espacée (À revoir, Retenu, Acquis). Carte « Souvenir du jour » sur Aujourd'hui.
+- **Fiche livre** : touche un titre (Annotations ou Progrès) pour voir progression, temps de lecture, temps restant estimé, passages, notes, mots, relire ce livre, tout copier en Markdown.
+- **Lecture** (onglet Progrès) : temps de lecture par jour (30 jours), série de jours lus, livres en cours avec temps restant, livres terminés. La Kobo ne garde qu'un total par livre : le programme de la Kobo le relève chaque minute et en déduit le temps par jour.
 - **Jeux** : Défi éclair, Paires, Phrase à trous, Écris-le, Dictée (avec indice).
 - **Son** : vraie prononciation (Wiktionary via dictionaryapi.dev) pour l'anglais, voix de l'iPhone sinon ; réglages de voix et de vitesse, test du son.
 - **Rappel quotidien** : fichier calendrier `rappels/HHMM.ics` (événement quotidien avec alerte), toutes les 30 minutes de 6 h à 22 h 30.
@@ -18,6 +21,7 @@ Ouvrir : https://gregguuus.github.io/mots-kobo/app.html
 
 ## Programme de la Kobo (`kobo/`)
 **Mots Kobo Notes** (Go, compilé pour ARM) tourne en arrière-plan sur la liseuse :
+- il relève chaque minute le compteur de temps de lecture de la Kobo (`TimeSpentReading`, livres KEPUB surtout) et envoie avec les annotations la liste des livres commencés (progression, temps, langue) et le temps lu par jour ;
 - il envoie les annotations dans `notes.enc` à **chaque connexion Wi-Fi**, à **chaque nouveau surlignage** et par un contrôle toutes les heures (avec une date, pour que l'appli sache que la Kobo est vivante) ;
 - il réessaie quand GitHub répond 409 (envoi simultané avec les mots) ;
 - il **se met à jour tout seul** : il lit `kobo/latest.json`, télécharge `motskobo-notes-arm.gz` dans `MotsKobo/bin`, vérifie la somme de contrôle puis `-version`, et redémarre dessus ; si la version téléchargée plante, `run.sh` revient à celle de la liseuse ;
