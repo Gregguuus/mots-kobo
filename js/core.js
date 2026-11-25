@@ -13,7 +13,7 @@ const DAY = M.DAY = 864e5, MIN = 6e4;
 /* ---------- état ---------- */
 const S = M.S = {
   kw: [], all: [], words: [], lang: 'en', notes: [], prog: {}, st: { xp: 0, days: {}, best: {}, fresh: {}, pfresh: {} }, reading: null, books: [],
-  set: { auto: false, rate: 0.9, voice: {}, remind: [] },
+  set: { auto: false, rate: 0.9, voice: {}, rappels: false },
   sync: { words: null, notes: null, kobo: null, checked: 0, busy: false, wordsErr: '', notesErr: '', notesState: 'none' },
   keyState: 'none', tab: 'today'
 };
@@ -380,21 +380,11 @@ V.play = (w, o = {}) => {
 };
 document.addEventListener('pointerdown', V.unlock, { once: true, passive: true });
 
-/* ---------- rappels quotidiens : fichiers calendrier .ics ---------- */
-M.icsDaily = (times, name) => {
-  const pad = n => String(n).padStart(2, '0'), d = new Date(), day = d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate());
-  const ev = (t, i) => { const [h, m] = t.split(':').map(Number);
-    return ['BEGIN:VEVENT', 'UID:motskobo-' + t.replace(':', '') + '-' + i + '@mots-kobo', 'DTSTAMP:' + day + 'T000000Z', 'DTSTART:' + day + 'T' + pad(h) + pad(m) + '00', 'DURATION:PT10M', 'RRULE:FREQ=DAILY',
-      'SUMMARY:Mots Kobo : ta révision du jour', 'DESCRIPTION:Quelques minutes suffisent pour garder tes mots en mémoire.', 'URL:https://gregguuus.github.io/mots-kobo/app.html',
-      'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:Mots Kobo : ta révision du jour', 'TRIGGER:PT0S', 'END:VALARM', 'END:VEVENT'].join('\r\n'); };
-  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Mots Kobo//FR', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:' + (name || 'Mots Kobo'), ...times.map(ev)].join('\r\n').replace(/\r\n(?=BEGIN:VEVENT)/g, '\r\n') + '\r\nEND:VCALENDAR\r\n';
-};
-
 /* ---------- démarrage des données ---------- */
 M.init = async () => {
   S.prog = M.obj(M.local('prog')); const ls = M.obj(M.local('stats'));
   S.st = { xp: ls.xp || 0, days: M.obj(ls.days), best: M.obj(ls.best), fresh: M.obj(ls.fresh), pfresh: M.obj(ls.pfresh) };
-  S.set = Object.assign({ auto: false, rate: 0.9, voice: {}, remind: [] }, M.obj(M.local('settings')));
+  S.set = Object.assign({ auto: false, rate: 0.9, voice: {}, rappels: false }, M.obj(M.local('settings')));
   S.lang = M.local('lang') || 'en';
   const key = M.getKey(); if (key) { M.local('key', key); S.keyState = 'ok'; }
   setWords(M.local('words') || []);

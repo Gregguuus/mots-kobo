@@ -67,7 +67,7 @@ function viewToday() {
     row({ ic: 'blank', bg: 'teal', t: 'Phrase à trous', s: 'Retrouve le mot dans la phrase du livre', a: 'game', d: 'data-g="cloze"' }) +
     row({ ic: 'pencil', bg: 'green', t: 'Écris-le', s: 'Retrouve le mot et écris-le', a: 'game', d: 'data-g="write"' }) +
     row({ ic: 'wave', bg: 'blue', t: 'Dictée', s: 'Écoute le mot et écris-le', a: 'game', d: 'data-g="dict"' }) + '</div>' +
-    '<h2 class="gt">Rappel</h2><div class="group">' + row({ ic: 'bell', bg: 'red', t: 'Rappel quotidien', s: S.set.remind.length ? 'Programmé : ' + esc(S.set.remind.join(', ')) : 'Une notification chaque jour pour t’entraîner', a: 'remind' }) + '</div>' +
+    '<h2 class="gt">Rappel</h2><div class="group">' + row({ ic: 'bell', bg: 'red', t: 'Rappel quotidien', s: S.set.rappels ? 'Ajouté à l’app Rappels' : 'Une notification chaque jour pour t’entraîner', a: 'remind' }) + '</div>' +
     (pend ? '<p class="gf">' + pend + ' mot' + (pend > 1 ? 's attendent' : ' attend') + ' leur traduction ou définition et ' + (pend > 1 ? 'rejoindront' : 'rejoindra') + ' les jeux dès qu’elle arrive.</p>' : '');
 }
 
@@ -204,7 +204,7 @@ function viewProgress() {
     '<div class="legend"><span style="--c:var(--green)">Maîtrisés</span><span style="--c:var(--orange)">En cours</span><span style="--c:var(--fill2)">Nouveaux</span></div></section>' +
     readingCards() +
     '<section class="card"><h3>Révisions des 7 prochains jours</h3><div class="fc7">' + fc.map(f => '<div><b>' + f.n + '</b><i style="height:' + Math.max(3, f.n / fmax * 80) + 'px"></i>' + esc(f.l) + '</div>').join('') + '</div><p class="sub" style="margin-top:8px;font-size:13px">En plus, au maximum ' + M.NEW_DAY + ' nouveaux mots par jour.</p></section>' +
-    '<section class="card"><h3>Ton calendrier</h3><div class="heat-wrap"><div class="heat">' + cells.join('') + '</div></div><p class="sub" style="margin-top:8px;font-size:13px">' + active + ' jour' + (active > 1 ? 's' : '') + ' de jeu · ' + S.st.xp + ' XP · série actuelle ' + M.streak() + ' j</p></section>' +
+    '<section class="card"><h3>Tes jours de jeu</h3><div class="heat-wrap"><div class="heat">' + cells.join('') + '</div></div><p class="sub" style="margin-top:8px;font-size:13px">' + active + ' jour' + (active > 1 ? 's' : '') + ' de jeu · ' + S.st.xp + ' XP · série actuelle ' + M.streak() + ' j</p></section>' +
     (books.length ? '<section class="card"><h3>Par livre</h3>' + books.map(([b, v]) => '<button class="bookrow" data-a="book" data-b="' + esc(b) + '"><div style="display:flex;justify-content:space-between;gap:10px;font-size:15px"><span>' + esc(b) + '</span><span class="muted">' + v.m + ' / ' + v.n + ' maîtrisés</span></div><div class="minibar"><i style="width:' + (v.m / v.n * 100) + '%;background:var(--green)"></i></div></button>').join('') + '</section>' : '') +
     (hard.length ? '<section class="card"><h3>Tes mots les plus coriaces</h3><div class="group" style="background:none">' + hard.map(([w, p]) => row({ t: '<span class="word-t">' + esc(w.w) + '</span>', s: esc(mean(w)), r: 'oublié ' + p.lapses + ' fois' })).join('') + '</div><button class="btn tint" data-a="drill" style="margin-top:12px">Réviser ces mots</button></section>' : '') + '</div>';
 }
@@ -225,7 +225,7 @@ function sheet(title, gen, wire) {
 function closeSheet(quick) { if (!curSheet) return; const { sc, sh } = curSheet; curSheet = null; V.stop(); sc.classList.remove('on'); sh.classList.remove('on'); setTimeout(() => { sc.remove(); sh.remove(); }, quick ? 0 : 450); }
 
 /* ---------- réglages ---------- */
-const TIMES = []; for (let h = 6; h <= 22; h++) for (const m of ['00', '30']) TIMES.push(String(h).padStart(2, '0') + ':' + m);
+const APP_URL = 'https://gregguuus.github.io/mots-kobo/app.html';
 function settingsHTML(focus) {
   const y = S.sync, k = y.kobo, n = M.counts(), voices = lang => V.forLang(lang);
   const vopt = lang => { const vs = voices(lang); if (!vs.length) return '<option value="">Voix du système</option>'; const cur = (S.set.voice || {})[lang] || (V.pick(lang) || {}).voiceURI; return vs.map(v => '<option value="' + esc(v.voiceURI) + '"' + (v.voiceURI === cur ? ' selected' : '') + '>' + esc(v.name) + '</option>').join(''); };
@@ -238,9 +238,7 @@ function settingsHTML(focus) {
     '<label class="row"><span class="row-main"><span class="t">Voix française</span></span><select class="field" data-s="voice" data-l="fr" style="width:auto;max-width:55%;min-height:36px">' + vopt('fr') + '</select></label>' +
     '<label class="row"><span class="row-main"><span class="t">Vitesse</span></span><input type="range" min="0.6" max="1.1" step="0.05" value="' + (S.set.rate || .9) + '" data-s="rate" style="width:46%"></label>' +
     '<button class="row" data-s="test"><span class="row-main"><span class="t" style="color:var(--blue)">Tester le son</span></span></button></div><p class="gf" id="snd">Pas de son ? Vérifie que ton iPhone n’est pas en mode silencieux (interrupteur sur le côté) et que le volume est monté.</p>' +
-    '<h2 class="gt">Rappel quotidien</h2><div class="group"><div class="row"><span class="row-main"><span class="t">Heure du rappel</span></span><select class="field" id="rtime" style="width:auto;min-height:36px">' + TIMES.map(t => '<option' + (t === '19:00' ? ' selected' : '') + '>' + t + '</option>').join('') + '</select></div>' +
-    '<a class="row" id="rlink" href="rappels/1900.ics" style="color:var(--blue);text-decoration:none"><span class="row-main"><span class="t">Ajouter à mon calendrier</span></span></a></div>' +
-    '<p class="gf">Ton calendrier t’envoie une notification chaque jour à cette heure. Touche « Ajouter », puis « Ajouter tout » dans la fenêtre qui s’ouvre. Pour changer l’heure, supprime l’événement « Mots Kobo » dans Calendrier.</p>' +
+    '<h2 class="gt">Rappel quotidien</h2><div class="group">' + row({ ic: 'bell', bg: 'red', t: 'Ajouter à mes Rappels', s: S.set.rappels ? 'Déjà ajouté à l’app Rappels' : 'Une notification chaque jour, avec un lien vers l’appli', a: 'remind' }) + '</div>' +
     '<h2 class="gt">Synchronisation</h2><div class="group">' + row({ t: 'Mots', s: y.words ? 'Reçus ' + M.ago(M.parseT(y.words)) : 'Aucun envoi reçu', r: String(n.en + n.fr + n.pending) }) +
     row({ t: 'Annotations', s: y.notes ? 'Reçues ' + M.ago(M.parseT(y.notes)) : 'Aucun envoi reçu', r: String(S.notes.length) }) + row({ t: 'Programme de la Kobo', s: esc(koboTxt) }) +
     '<button class="row" data-s="sync"><span class="row-main"><span class="t" style="color:var(--blue)">' + (y.busy ? 'Synchronisation…' : 'Synchroniser maintenant') + '</span></span></button></div>' +
@@ -257,8 +255,6 @@ function openSettings(focus) {
     on('[data-s="voice"]', 'change', e => { S.set.voice = S.set.voice || {}; S.set.voice[e.target.dataset.l] = e.target.value; M.saveSettings(); });
     on('[data-s="rate"]', 'input', e => { S.set.rate = +e.target.value; M.saveSettings(); });
     on('[data-s="test"]', 'click', () => { const out = sh.querySelector('#snd'), w = { w: 'hello', _l: 'en' }; out.textContent = 'Lecture…'; V.play(w, { start: () => out.textContent = 'Le son est en cours de lecture. Tu l’entends ?', end: () => {}, fail: r => out.textContent = r === 'unsupported' ? 'Le son n’est pas disponible sur cet appareil.' : 'Aucun son détecté. Vérifie que ton iPhone n’est pas en mode silencieux (interrupteur sur le côté) et que le volume est monté.' }); });
-    on('#rtime', 'change', e => { sh.querySelector('#rlink').href = 'rappels/' + e.target.value.replace(':', '') + '.ics'; });
-    on('#rlink', 'click', () => { const t = sh.querySelector('#rtime').value; S.set.remind = [t]; M.saveSettings(); });
     on('[data-s="sync"]', 'click', async () => { await M.syncAll(); draw(); });
     on('[data-s="copycmd"]', 'click', () => copyOrShare(UPDATE_CMD, 'copy'));
     if (focus === 'sync') setTimeout(() => { const c = sh.querySelector('#cmd'); c && c.scrollIntoView({ block: 'center' }); }, 480);
@@ -278,10 +274,16 @@ function pickSqlite() {
   f.click();
 }
 function openRemind() {
-  sheet('Rappel quotidien', () => '<div class="card center" style="padding:22px"><div style="font-size:44px;color:var(--red)">' + ico('bell') + '</div><h3 style="margin:8px 0 4px;font-size:20px">Une notification chaque jour</h3><p class="muted" style="margin:0">Ton calendrier te rappelle de t’entraîner à l’heure que tu choisis.</p></div>' +
-    '<div class="group"><div class="row"><span class="row-main"><span class="t">Heure</span></span><select class="field" id="rtime" style="width:auto;min-height:36px">' + TIMES.map(t => '<option' + (t === (S.set.remind[0] || '19:00') ? ' selected' : '') + '>' + t + '</option>').join('') + '</select></div></div>' +
-    '<a class="btn" id="rlink" href="rappels/' + (S.set.remind[0] || '19:00').replace(':', '') + '.ics" style="text-decoration:none">Ajouter à mon calendrier</a><p class="gf" style="margin:0">Touche « Ajouter », puis « Ajouter tout ». Pour changer l’heure plus tard, supprime l’événement « Mots Kobo » dans Calendrier et recommence.</p>',
-    sh => { sh.querySelector('#rtime').onchange = e => { sh.querySelector('#rlink').href = 'rappels/' + e.target.value.replace(':', '') + '.ics'; }; sh.querySelector('#rlink').onclick = () => { S.set.remind = [sh.querySelector('#rtime').value]; M.saveSettings(); }; });
+  sheet('Rappel quotidien', () => '<div class="card center" style="padding:22px"><div style="font-size:44px;color:var(--red)">' + ico('bell') + '</div><h3 style="margin:8px 0 4px;font-size:20px">Dans ton app Rappels</h3><p class="muted" style="margin:0">Ton iPhone te prévient chaque jour. Toucher le rappel ouvre directement Mots Kobo.</p></div>' +
+    '<ol class="steps"><li>Touche <b>Ajouter à mes Rappels</b> ci-dessous.</li><li>Dans la liste qui s’ouvre, choisis <b>Rappels</b>.</li><li>Règle l’heure, puis <b>Répéter › Tous les jours</b>.</li><li>Touche <b>Ajouter</b>.</li></ol>' +
+    '<button class="btn" data-a="remindshare">Ajouter à mes Rappels</button>' +
+    '<button class="btn gray" data-a="reminddone">' + (S.set.rappels ? 'Déjà ajouté, retirer la coche' : 'C’est fait') + '</button>' +
+    '<p class="gf" style="margin:0">Apple ne laisse pas une appli web créer elle-même un rappel qui se répète : ces quatre touches sont à faire une seule fois.</p>');
+}
+async function shareReminder() {
+  const data = { title: 'Mots Kobo : ta révision du jour', text: 'Mots Kobo : ta révision du jour', url: APP_URL };
+  if (navigator.share) { try { await navigator.share(data); } catch (e) { if (!e || e.name !== 'AbortError') M.toast('Partage impossible'); } }
+  else { await copyOrShare(data.text + '\n' + APP_URL, 'copy'); M.toast('Lien copié : colle-le dans Rappels'); }
 }
 
 /* ---------- actions ---------- */
@@ -297,6 +299,8 @@ const A = {
   drill: () => { const hard = S.words.filter(w => M.P(w).lapses > 0).sort((a, b) => M.P(b).lapses - M.P(a).lapses).slice(0, 8); M.games.review(hard); },
   game: el => M.games[el.dataset.g] && M.games[el.dataset.g](),
   remind: () => openRemind(),
+  remindshare: () => shareReminder(),
+  reminddone: () => { S.set.rappels = !S.set.rappels; M.saveSettings(); closeSheet(); M.emit(); M.toast(S.set.rappels ? 'Rappel noté' : 'Coche retirée'); },
   word: el => openWord(+el.dataset.i),
   nf: el => { F[el.dataset.k] = el.dataset.v; render(); },
   ncopy: el => { const x = S.notes.find(n => n.id === el.dataset.id); x && copyOrShare(textOf(x), 'copy'); },

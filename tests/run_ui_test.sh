@@ -4,7 +4,7 @@
 set -e
 ROOT=$(cd "$(dirname "$0")/.." && pwd); W=${1:-/tmp/motskobo-uitest}
 mkdir -p "$W/site/js" "$W/site/vendor" "$W/shots" "$W/cfg"
-cp "$ROOT"/app.html "$ROOT"/app.css "$ROOT"/sw.js "$ROOT"/icon-app-180.png "$W/site/"; cp "$ROOT"/js/*.js "$W/site/js/"; cp "$ROOT"/vendor/sql-wasm.* "$W/site/vendor/"; cp -r "$ROOT/rappels" "$W/site/"
+cp "$ROOT"/app.html "$ROOT"/app.css "$ROOT"/sw.js "$ROOT"/icon-app-180.png "$W/site/"; cp "$ROOT"/js/*.js "$W/site/js/"; cp "$ROOT"/vendor/sql-wasm.* "$W/site/vendor/"
 KEY=$(python3 "$ROOT/tests/make_fixture.py" "$W/site")
 rm -f "$W/KoboReader.sqlite"; python3 "$ROOT/tests/make_kobo_db.py" "$W/KoboReader.sqlite" >/dev/null
 (cd "$ROOT/kobo/motskobo" && go build -o "$W/motskobo" .)

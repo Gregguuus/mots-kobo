@@ -10,6 +10,7 @@ const bad = s => /&amp;|&#|&lt;|\[object|undefined|NaN|\bnull\b|\{\}|\[\]/.test(
     const ctx = await b.newContext({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, colorScheme: scheme });
     const p = await ctx.newPage();
     p.on('pageerror', e => errs.push(e.message)); p.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|net::ERR/.test(m.text())) errs.push(m.text()); });
+    await p.addInitScript(() => { window.__shared = []; Object.defineProperty(navigator, 'share', { value: d => { window.__shared.push(d); return Promise.resolve(); }, configurable: true }); });
     await p.addInitScript(() => { window.__spoken = []; const ss = { speak(u) { window.__spoken.push(u.text); setTimeout(() => u.onstart && u.onstart(), 20); setTimeout(() => u.onend && u.onend(), 100); }, cancel() {}, getVoices() { return []; }, addEventListener() {} }; Object.defineProperty(window, 'speechSynthesis', { value: ss }); window.SpeechSynthesisUtterance = function (t) { this.text = t; }; });
     await p.route('https://api.mymemory.translated.net/**', r => r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ responseStatus: 200, responseData: { translatedText: 'bizarre' } }) }));
     await p.route('https://fr.wiktionary.org/w/api.php**', r => { const title = decodeURIComponent((r.request().url().match(/titles=([^&]+)/) || [])[1] || '');
@@ -64,8 +65,12 @@ const bad = s => /&amp;|&#|&lt;|\[object|undefined|NaN|\bnull\b|\{\}|\[\]/.test(
   // 4c. réglages
   await p.click('.tab[data-t="progress"]');
   await p.click('[data-a="settings"]'); await p.waitForSelector('.sheet.on'); await p.waitForTimeout(600); await shot('6-reglages');
-  const href = await p.getAttribute('.sheet.on #rlink', 'href'); if (href !== 'rappels/1900.ics') fail('lien de rappel : ' + href);
-  await p.selectOption('.sheet.on #rtime', '08:30'); if ((await p.getAttribute('.sheet.on #rlink', 'href')) !== 'rappels/0830.ics') fail('heure du rappel');
+  await p.click('.sheet.on [data-a="remind"]'); await p.waitForSelector('.sheet.on .steps'); await p.waitForTimeout(500); await shot('13-rappels');
+  await p.click('.sheet.on [data-a="remindshare"]'); await p.waitForTimeout(150);
+  const shd = await p.evaluate(() => window.__shared); if (shd.length !== 1 || !/app\.html$/.test(shd[0].url) || !/révision/.test(shd[0].title)) fail('partage vers Rappels : ' + JSON.stringify(shd));
+  await p.click('.sheet.on [data-a="reminddone"]'); await p.waitForTimeout(600);
+  await p.click('[data-a="settings"]'); await p.waitForSelector('.sheet.on'); await p.waitForTimeout(500);
+  const st2 = await p.evaluate(() => document.querySelector('.sheet.on').innerText); if (/calendrier/i.test(st2)) fail('il reste du calendrier dans les réglages'); if (!/Déjà ajouté à l’app Rappels/.test(st2)) fail('rappel non noté');
   await p.click('.sheet.on [data-s="test"]'); await p.waitForTimeout(250); await p.click('.sheet.on [data-sx]'); await p.waitForTimeout(500);
 
   // 5. révision et jeux, en anglais puis en français

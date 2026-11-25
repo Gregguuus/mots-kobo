@@ -8,13 +8,13 @@ Ouvrir : https://gregguuus.github.io/mots-kobo/app.html
 - **Aujourd'hui** : révision du jour (répétition espacée : Encore, Difficile, Bien, Facile), anneau d'XP, série, jeux, rappel.
 - **Mots** : liste par jour, recherche, fiche avec prononciation. Anglais et français sont séparés (sélecteur en haut). Les mots arrivés sans traduction sont traduits automatiquement (MyMemory). Les mots français viennent des surlignages d'un seul mot dans les livres français, avec leur définition du Wiktionnaire.
 - **Annotations** : passages surlignés et notes, par livre, en texte noir avec une fine barre de couleur. Recherche, filtres langue / « avec note » / livre, copie, partage, export Markdown.
-- **Progrès** : mémoire, révisions à venir, calendrier, avancement par livre, mots coriaces.
+- **Progrès** : mémoire, révisions à venir, jours de jeu, avancement par livre, mots coriaces.
 - **Relecture des passages** (comme la « relecture quotidienne » de Readwise, mais gratuite et pour les livres copiés à la main, que Readwise ne synchronise pas) : chaque jour, 5 passages surlignés reviennent, avec répétition espacée (À revoir, Retenu, Acquis). Carte « Souvenir du jour » sur Aujourd'hui.
 - **Fiche livre** : touche un titre (Annotations ou Progrès) pour voir progression, temps de lecture, temps restant estimé, passages, notes, mots, relire ce livre, tout copier en Markdown.
 - **Lecture** (onglet Progrès) : temps de lecture par jour (30 jours), série de jours lus, livres en cours avec temps restant, livres terminés. La Kobo ne garde qu'un total par livre : le programme de la Kobo le relève chaque minute et en déduit le temps par jour.
 - **Jeux** : Défi éclair, Paires, Phrase à trous, Écris-le, Dictée (avec indice).
 - **Son** : vraie prononciation (Wiktionary via dictionaryapi.dev) pour l'anglais, voix de l'iPhone sinon ; réglages de voix et de vitesse, test du son.
-- **Rappel quotidien** : fichier calendrier `rappels/HHMM.ics` (événement quotidien avec alerte), toutes les 30 minutes de 6 h à 22 h 30.
+- **Rappel quotidien** dans l'app **Rappels** de l'iPhone : le bouton ouvre le menu Partager (`navigator.share`) avec un titre et le lien de l'appli ; il reste à choisir « Rappels », l'heure et « Répéter › Tous les jours ». Apple ne permet pas à une appli web de créer elle-même un rappel qui se répète.
 - Les textes passent par un nettoyage (entités HTML, espaces insécables, caractères invisibles).
 
 `annotations.html` redirige vers l'onglet Annotations. `index.html`, `sw.js`, `icon-180.png` et `words.enc` appartiennent au programme de la Kobo, qui les réécrit : ne pas les modifier.
@@ -44,4 +44,4 @@ Publier une nouvelle version du programme : augmenter `kobo/VERSION`, lancer `ko
 tests/run_ui_test.sh                      # appli sur un iPhone émulé (Go, Python, Node, Playwright)
 python3 tests/kobo_daemon_test.py <v2> <v3> <dossier>   # démon : connexion, changement, 409, mise à jour
 ```
-Outils : `tools/make_icons.js` (icônes depuis `tools/icon.svg`), `tools/make_ics.py` (rappels).
+Outils : `tools/make_icons.js` (icônes depuis `tools/icon.svg`).
