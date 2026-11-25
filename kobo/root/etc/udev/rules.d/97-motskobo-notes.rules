@@ -1,3 +1,5 @@
-# Mots Kobo Notes : démarre la surveillance au démarrage de la Kobo et à chaque connexion Wi-Fi
+# Mots Kobo Notes : démarre la surveillance au démarrage de la Kobo, quand la mémoire est prête et à chaque connexion Wi-Fi.
+# (run.sh ne lance qu'un seul exemplaire à la fois.)
 KERNEL=="loop0", ACTION=="add", RUN+="/usr/local/motskobo/run.sh"
+SUBSYSTEM=="block", KERNEL=="mmcblk0p3", ACTION=="add", RUN+="/usr/local/motskobo/run.sh"
 ACTION=="add", SUBSYSTEM=="net", KERNEL=="eth*|wlan*", RUN+="/usr/local/motskobo/run.sh"

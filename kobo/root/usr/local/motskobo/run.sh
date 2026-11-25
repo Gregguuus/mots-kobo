@@ -1,47 +1,42 @@
 #!/bin/sh
-# Mots Kobo Notes
-#   run.sh        : lancé par udev (Wi-Fi allumé ou démarrage) ; lance la surveillance en arrière-plan
-#   run.sh now    : envoi immédiat (NickelMenu)
+# Mots Kobo Notes : lancé par udev (démarrage de la Kobo, Wi-Fi) ou par NickelMenu (« now »).
+#   run.sh       : démarre la surveillance en arrière-plan (un seul exemplaire à la fois)
+#   run.sh now   : envoi immédiat
 DIR=${MOTSKOBO_DIR:-/mnt/onboard/MotsKobo}
-BIN=${MOTSKOBO_BIN:-/usr/local/motskobo/motskobo-notes}
-LOG="$DIR/journal.txt"
+SYS=${MOTSKOBO_SYS:-/usr/local/motskobo/motskobo-notes}
+ALT="$DIR/bin/motskobo-notes"   # version téléchargée toute seule par le programme
 
-if [ "$1" = "now" ]; then exec "$BIN" -force; fi
+# prend la version la plus récente des deux
+BIN="$SYS"
+if [ -x "$ALT" ]; then
+  a=$("$ALT" -version 2>/dev/null); s=$("$SYS" -version 2>/dev/null)
+  [ "${a:-0}" -gt "${s:-0}" ] 2>/dev/null && BIN="$ALT"
+fi
 
-if [ "$1" != "loop" ]; then
-  # se détacher d'udev
-  if command -v setsid >/dev/null 2>&1; then setsid "$0" loop </dev/null >/dev/null 2>&1 &
-  else "$0" loop </dev/null >/dev/null 2>&1 &
+if [ "$1" = "now" ]; then exec "$BIN" -dir "$DIR" -force; fi
+
+# se détacher d'udev
+if [ "$1" != "bg" ]; then
+  if command -v setsid >/dev/null 2>&1; then setsid "$0" bg </dev/null >/dev/null 2>&1 &
+  else "$0" bg </dev/null >/dev/null 2>&1 &
   fi
   exit 0
 fi
 
-# Une seule surveillance à la fois
-mkdir /tmp/motskobo.lock 2>/dev/null || exit 0
-trap 'rmdir /tmp/motskobo.lock' EXIT
-
-# attendre que la mémoire de la liseuse soit montée
-i=0; while [ ! -d "$DIR" ] && [ $i -lt 60 ]; do sleep 5; i=$((i+1)); done
+# attendre que la mémoire de la liseuse soit montée (jusqu'à 5 min)
+i=0; while [ ! -f "$DIR/config.txt" ] && [ $i -lt 60 ]; do sleep 5; i=$((i+1)); done
 [ -f "$DIR/config.txt" ] || exit 0
-echo "$(date '+%Y/%m/%d %H:%M:%S') surveillance démarrée" >> "$LOG"
 
-# Entrée NickelMenu, si NickelMenu est installé
+# entrée NickelMenu « Envoyer mes annotations », si NickelMenu est installé
 NM=/mnt/onboard/.adds/nm
 if [ -d "$NM" ] && [ ! -f "$NM/motskobo-notes" ]; then
-  echo "menu_item:main:Envoyer mes annotations:cmd_output:90000:$BIN -force" > "$NM/motskobo-notes"
+  echo "menu_item:main:Envoyer mes annotations:cmd_output:90000:/usr/local/motskobo/run.sh now" > "$NM/motskobo-notes"
 fi
 
-online() {
-  (ip route 2>/dev/null; route -n 2>/dev/null) | grep -qE '^(default|0\.0\.0\.0)'
-}
-was=0
-while [ -f "$DIR/config.txt" ]; do
-  if online; then
-    # à chaque connexion, puis toutes les 10 minutes tant que le Wi-Fi reste allumé
-    if [ $was -eq 0 ] || [ $((n % 20)) -eq 0 ]; then "$BIN" -tries 3 >/dev/null 2>&1; fi
-    was=1; n=$((n+1))
-  else
-    was=0; n=1
-  fi
-  sleep 30
-done
+"$BIN" -dir "$DIR" daemon
+rc=$?
+# si la version téléchargée plante, on revient à celle de la liseuse
+if [ "$BIN" = "$ALT" ] && [ $rc -ne 0 ]; then
+  rm -f "$ALT"
+  exec "$SYS" -dir "$DIR" daemon
+fi

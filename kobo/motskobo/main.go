@@ -1,5 +1,9 @@
 // motskobo-notes : envoie les annotations de la Kobo (surlignages et notes) vers GitHub,
-// chiffrées avec la même clé que les mots, dans notes.enc. Lancé à chaque connexion Wi-Fi.
+// chiffrées avec la même clé que les mots, dans notes.enc.
+//
+//	motskobo-notes daemon   surveille le Wi-Fi et la base, envoie à chaque connexion et à chaque
+//	                        changement, se met à jour tout seul
+//	motskobo-notes -force   un envoi immédiat (entrée NickelMenu)
 package main
 
 import (
@@ -17,18 +21,25 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	_ "golang.org/x/crypto/x509roots/fallback" // certificats racines intégrés : la Kobo a souvent des certificats périmés
 	_ "modernc.org/sqlite"
 )
+
+// Renseignée à la compilation (build.sh) : -X main.versionStr=N
+var versionStr = "2"
+
+func version() int { n, _ := strconv.Atoi(versionStr); return n }
 
 type Note struct {
 	ID string  `json:"id"`
@@ -42,10 +53,37 @@ type Note struct {
 	A  string  `json:"a,omitempty"`
 }
 
-type Config struct{ Token, Key, Repo, Branch, File, API string }
+type Config struct {
+	Token, Key, Repo, Branch, File, API, Raw string
+	Update                                   bool
+}
+
+// ---------- journal ----------
+
+var logFile *os.File
+
+func logf(format string, a ...any) {
+	line := time.Now().Format("2006/01/02 15:04:05") + " " + fmt.Sprintf(format, a...) + "\n"
+	os.Stdout.WriteString(line)
+	if logFile != nil {
+		logFile.WriteString(line)
+	}
+}
+
+func openLog(dir string) {
+	p := filepath.Join(dir, "journal.txt")
+	if fi, err := os.Stat(p); err == nil && fi.Size() > 200_000 {
+		os.Rename(p, filepath.Join(dir, "journal.old.txt"))
+	}
+	if f, err := os.OpenFile(p, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644); err == nil {
+		logFile = f
+	}
+}
+
+// ---------- réglages ----------
 
 func readConfig(path string) (Config, error) {
-	c := Config{Repo: "gregguuus/mots-kobo", Branch: "main", File: "notes.enc", API: "https://api.github.com"}
+	c := Config{Repo: "gregguuus/mots-kobo", Branch: "main", File: "notes.enc", API: "https://api.github.com", Update: true}
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return c, err
@@ -68,6 +106,9 @@ func readConfig(path string) (Config, error) {
 			if i := strings.Index(v, "k="); i >= 0 {
 				v = v[i+2:]
 			}
+			if i := strings.IndexAny(v, "&# "); i >= 0 {
+				v = v[:i]
+			}
 			c.Key = strings.TrimSpace(v)
 		case "repo":
 			c.Repo = v
@@ -77,7 +118,14 @@ func readConfig(path string) (Config, error) {
 			c.File = v
 		case "api":
 			c.API = strings.TrimRight(v, "/")
+		case "raw":
+			c.Raw = strings.TrimRight(v, "/")
+		case "update":
+			c.Update = !(v == "off" || v == "non" || v == "0" || v == "false")
 		}
+	}
+	if c.Raw == "" {
+		c.Raw = "https://raw.githubusercontent.com/" + c.Repo + "/" + c.Branch
 	}
 	if c.Key == "" {
 		return c, errors.New("clé manquante dans MotsKobo/config.txt (ligne key=…)")
@@ -85,14 +133,25 @@ func readConfig(path string) (Config, error) {
 	return c, nil
 }
 
+// ---------- lecture de la base de la Kobo ----------
+
 func readNotes(dbPath string) ([]Note, error) {
-	// copie d'abord la base : la liseuse peut l'avoir ouverte
-	tmp := filepath.Join(os.TempDir(), "motskobo-KoboReader.sqlite")
+	// copie d'abord la base (et son journal WAL s'il existe) : la liseuse peut l'avoir ouverte
+	tmpDir, err := os.MkdirTemp("", "motskobo")
+	if err != nil {
+		return nil, err
+	}
+	defer os.RemoveAll(tmpDir)
+	tmp := filepath.Join(tmpDir, "KoboReader.sqlite")
 	if err := copyFile(dbPath, tmp); err != nil {
 		return nil, err
 	}
-	defer os.Remove(tmp)
-	db, err := sql.Open("sqlite", "file:"+tmp+"?mode=ro")
+	for _, suf := range []string{"-wal", "-shm"} {
+		if _, err := os.Stat(dbPath + suf); err == nil {
+			copyFile(dbPath+suf, tmp+suf)
+		}
+	}
+	db, err := sql.Open("sqlite", tmp)
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +252,9 @@ func copyFile(src, dst string) error {
 	return out.Close()
 }
 
-// Même format que words.enc : flux HMAC-SHA256, MAC sur nonce+chiffré, contenu gzip.
+// ---------- chiffrement : même format que words.enc ----------
+// flux HMAC-SHA256, MAC sur nonce+chiffré, contenu gzip.
+
 func seal(plain []byte, keyStr string) ([]byte, error) {
 	key, err := base64.RawURLEncoding.DecodeString(strings.TrimRight(keyStr, "="))
 	if err != nil {
@@ -224,10 +285,18 @@ func seal(plain []byte, keyStr string) ([]byte, error) {
 	return json.Marshal(box)
 }
 
-func push(c Config, content []byte) error {
-	if c.Token == "" {
-		return errors.New("jeton GitHub manquant dans MotsKobo/config.txt (ligne token=…)")
-	}
+// ---------- envoi vers GitHub ----------
+
+type httpErr struct {
+	code int
+	msg  string
+}
+
+func (e *httpErr) Error() string {
+	return fmt.Sprintf("GitHub a refusé l'envoi (%d) : %s", e.code, e.msg)
+}
+
+func pushOnce(c Config, content []byte) error {
 	u := c.API + "/repos/" + c.Repo + "/contents/" + c.File
 	cl := &http.Client{Timeout: 60 * time.Second}
 	do := func(method, u string, body io.Reader) (*http.Response, error) {
@@ -238,31 +307,58 @@ func push(c Config, content []byte) error {
 		return cl.Do(req)
 	}
 	var sha string
-	if r, err := do("GET", u+"?ref="+url.QueryEscape(c.Branch), nil); err != nil {
+	r, err := do("GET", u+"?ref="+url.QueryEscape(c.Branch), nil)
+	if err != nil {
 		return err
-	} else {
-		var cur struct {
-			SHA string `json:"sha"`
-		}
-		json.NewDecoder(r.Body).Decode(&cur)
-		r.Body.Close()
-		sha = cur.SHA
 	}
+	var cur struct {
+		SHA string `json:"sha"`
+	}
+	json.NewDecoder(r.Body).Decode(&cur)
+	r.Body.Close()
+	if r.StatusCode == 401 || r.StatusCode == 403 {
+		return &httpErr{r.StatusCode, "jeton refusé ou expiré (à recréer sur github.com/settings/personal-access-tokens)"}
+	}
+	sha = cur.SHA
 	body := map[string]string{"message": "Annotations Kobo", "content": base64.StdEncoding.EncodeToString(content), "branch": c.Branch}
 	if sha != "" {
 		body["sha"] = sha
 	}
 	b, _ := json.Marshal(body)
-	r, err := do("PUT", u, bytes.NewReader(b))
+	r, err = do("PUT", u, bytes.NewReader(b))
 	if err != nil {
 		return err
 	}
 	defer r.Body.Close()
 	if r.StatusCode >= 300 {
-		msg, _ := io.ReadAll(io.LimitReader(r.Body, 500))
-		return fmt.Errorf("GitHub a refusé l'envoi (%d) : %s", r.StatusCode, msg)
+		msg, _ := io.ReadAll(io.LimitReader(r.Body, 300))
+		return &httpErr{r.StatusCode, string(msg)}
 	}
 	return nil
+}
+
+// push réessaie quand GitHub répond 409 (deux envois en même temps : les nôtres et ceux des mots) ou 5xx.
+func push(c Config, content []byte) error {
+	if c.Token == "" {
+		return errors.New("jeton GitHub manquant dans MotsKobo/config.txt (ligne token=…)")
+	}
+	var last error
+	for attempt := 0; attempt < 4; attempt++ {
+		if attempt > 0 {
+			time.Sleep(time.Duration(attempt) * 2 * time.Second)
+		}
+		err := pushOnce(c, content)
+		if err == nil {
+			return nil
+		}
+		var he *httpErr
+		if errors.As(err, &he) && (he.code == 409 || he.code == 422 || he.code >= 500) {
+			last = err
+			continue
+		}
+		return err
+	}
+	return last
 }
 
 func waitOnline(api string, tries int) bool {
@@ -277,57 +373,288 @@ func waitOnline(api string, tries int) bool {
 	return false
 }
 
+// ---------- un envoi ----------
+
+type syncer struct {
+	c    Config
+	dir  string
+	db   string
+	boot time.Time
+}
+
+func (s *syncer) sync(force bool, why string) error {
+	notes, err := readNotes(s.db)
+	if err != nil {
+		return fmt.Errorf("lecture des annotations : %w", err)
+	}
+	plain, _ := json.Marshal(notes)
+	sum := sha256.Sum256(plain)
+	stamp := hex.EncodeToString(sum[:])
+	statePath := filepath.Join(s.dir, "dernier-envoi.txt")
+	if prev, _ := os.ReadFile(statePath); !force && strings.TrimSpace(string(prev)) == stamp {
+		logf("%d annotations, rien de nouveau (%s)", len(notes), why)
+		return nil
+	}
+	payload, _ := json.Marshal(map[string]any{
+		"notes":   notes,
+		"updated": time.Now().UTC().Format(time.RFC3339),
+		"kobo":    map[string]any{"v": version(), "boot": s.boot.UTC().Format(time.RFC3339), "why": why},
+	})
+	box, err := seal(payload, s.c.Key)
+	if err != nil {
+		return err
+	}
+	if err := push(s.c, box); err != nil {
+		return err
+	}
+	os.WriteFile(statePath, []byte(stamp), 0644)
+	logf("%d annotations envoyées (%s)", len(notes), why)
+	return nil
+}
+
+// ---------- surveillance ----------
+
+func envDur(name string, def time.Duration) time.Duration {
+	if v := os.Getenv(name); v != "" {
+		if d, err := time.ParseDuration(v); err == nil {
+			return d
+		}
+	}
+	return def
+}
+
+func isOnline() bool {
+	if os.Getenv("MOTSKOBO_ONLINE") == "1" {
+		return true
+	}
+	b, err := os.ReadFile("/proc/net/route")
+	if err != nil {
+		return false
+	}
+	for i, line := range strings.Split(string(b), "\n") {
+		f := strings.Fields(line)
+		if i == 0 || len(f) < 4 || f[1] != "00000000" {
+			continue
+		}
+		if flags, err := strconv.ParseInt(f[3], 16, 64); err == nil && flags&2 != 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func dbStamp(db string) string {
+	var sb strings.Builder
+	for _, p := range []string{db, db + "-wal"} {
+		if fi, err := os.Stat(p); err == nil {
+			fmt.Fprintf(&sb, "%d:%d;", fi.ModTime().UnixNano(), fi.Size())
+		}
+	}
+	return sb.String()
+}
+
+var failedUpdate int
+
+func daemon(dir, db string) {
+	lockPath := os.Getenv("MOTSKOBO_LOCK")
+	if lockPath == "" {
+		lockPath = "/tmp/motskobo.lock"
+	}
+	if lf, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0644); err == nil {
+		if syscall.Flock(int(lf.Fd()), syscall.LOCK_EX|syscall.LOCK_NB) != nil {
+			return // un autre démon tourne déjà ; le verrou disparaît tout seul si le processus meurt
+		}
+	}
+	poll := envDur("MOTSKOBO_POLL", 20*time.Second)
+	settle := envDur("MOTSKOBO_SETTLE", 12*time.Second)
+	minCheck := envDur("MOTSKOBO_MINCHECK", 2*time.Minute)
+	heartbeat := envDur("MOTSKOBO_HEARTBEAT", 60*time.Minute)
+	updEvery := envDur("MOTSKOBO_UPDATE", 6*time.Hour)
+	retry := envDur("MOTSKOBO_RETRY", 60*time.Second)
+
+	logf("démon v%d démarré", version())
+	s := &syncer{dir: dir, db: db, boot: time.Now()}
+	cfgPath := filepath.Join(dir, "config.txt")
+	var (
+		wasOnline, pending, paused bool
+		lastStamp                  string
+		lastCheck, lastSync        time.Time
+		nextTry, lastUpd           time.Time
+	)
+	for {
+		c, err := readConfig(cfgPath)
+		if err != nil {
+			if !paused {
+				logf("en pause : %v", err)
+				paused = true
+			}
+			time.Sleep(poll)
+			continue
+		}
+		if paused {
+			logf("réglages retrouvés")
+			paused = false
+		}
+		s.c = c
+		now := time.Now()
+		if !isOnline() {
+			wasOnline = false
+			time.Sleep(poll)
+			continue
+		}
+		reason, force := "", false
+		if !wasOnline {
+			wasOnline, pending = true, true
+			time.Sleep(settle) // laisse le Wi-Fi finir de se connecter
+			now = time.Now()
+		}
+		if now.After(nextTry) || nextTry.IsZero() {
+			switch st := dbStamp(db); {
+			case pending:
+				reason, force = "connexion", true
+			case st != lastStamp && now.Sub(lastCheck) >= minCheck:
+				reason = "changement"
+				lastCheck = now
+			case now.Sub(lastSync) >= heartbeat:
+				reason, force = "contrôle", true
+			}
+			if reason != "" {
+				if err := s.sync(force, reason); err != nil {
+					logf("ERREUR : %v", err)
+					nextTry = now.Add(retry)
+				} else {
+					pending, lastSync, lastStamp, nextTry = false, now, dbStamp(db), time.Time{}
+				}
+			}
+		}
+		if c.Update && now.Sub(lastUpd) >= updEvery {
+			lastUpd = now
+			if err := selfUpdate(c, dir, db); err != nil {
+				logf("mise à jour : %v", err)
+			}
+		}
+		time.Sleep(poll)
+	}
+}
+
+// ---------- mise à jour automatique ----------
+// Le programme regarde si kobo/latest.json (dans le dépôt GitHub) annonce une version plus récente,
+// la télécharge dans MotsKobo/bin, la vérifie (somme de contrôle, puis -version) et redémarre dessus.
+
+func selfUpdate(c Config, dir, db string) error {
+	cl := &http.Client{Timeout: 90 * time.Second}
+	get := func(u string) ([]byte, error) {
+		req, _ := http.NewRequest("GET", u, nil)
+		req.Header.Set("User-Agent", "motskobo-notes")
+		r, err := cl.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		defer r.Body.Close()
+		if r.StatusCode != 200 {
+			return nil, fmt.Errorf("%s : %d", u, r.StatusCode)
+		}
+		return io.ReadAll(io.LimitReader(r.Body, 40<<20))
+	}
+	b, err := get(c.Raw + "/kobo/latest.json?t=" + strconv.FormatInt(time.Now().Unix(), 10))
+	if err != nil {
+		return err
+	}
+	var l struct {
+		Version int    `json:"version"`
+		SHA256  string `json:"sha256"`
+		File    string `json:"file"`
+	}
+	if err := json.Unmarshal(b, &l); err != nil || l.File == "" {
+		return errors.New("latest.json illisible")
+	}
+	if l.Version <= version() || l.Version == failedUpdate {
+		return nil
+	}
+	gz, err := get(c.Raw + "/kobo/" + l.File)
+	if err != nil {
+		return err
+	}
+	zr, err := gzip.NewReader(bytes.NewReader(gz))
+	if err != nil {
+		return err
+	}
+	bin, err := io.ReadAll(zr)
+	if err != nil {
+		return err
+	}
+	if sum := sha256.Sum256(bin); hex.EncodeToString(sum[:]) != l.SHA256 {
+		return errors.New("somme de contrôle incorrecte, mise à jour ignorée")
+	}
+	bdir := filepath.Join(dir, "bin")
+	os.MkdirAll(bdir, 0755)
+	tmp := filepath.Join(bdir, "motskobo-notes.new")
+	if err := os.WriteFile(tmp, bin, 0755); err != nil {
+		return err
+	}
+	os.Chmod(tmp, 0755)
+	out, err := exec.Command(tmp, "-version").Output()
+	if err != nil || strings.TrimSpace(string(out)) != strconv.Itoa(l.Version) {
+		os.Remove(tmp)
+		failedUpdate = l.Version
+		return fmt.Errorf("la version %d ne démarre pas sur cette liseuse, ignorée", l.Version)
+	}
+	final := filepath.Join(bdir, "motskobo-notes")
+	if err := os.Rename(tmp, final); err != nil {
+		return err
+	}
+	logf("mise à jour automatique : v%d vers v%d", version(), l.Version)
+	return syscall.Exec(final, []string{final, "-dir", dir, "-db", db, "daemon"}, os.Environ())
+}
+
+// ---------- entrée ----------
+
 func main() {
 	dir := flag.String("dir", "/mnt/onboard/MotsKobo", "dossier de config.txt et du journal")
 	dbPath := flag.String("db", "/mnt/onboard/.kobo/KoboReader.sqlite", "base de la Kobo")
 	out := flag.String("out", "", "écrire notes.enc dans ce fichier au lieu de l'envoyer (tests)")
 	force := flag.Bool("force", false, "envoyer même si rien n'a changé")
 	tries := flag.Int("tries", 12, "essais de connexion, 10 s d'écart")
+	ver := flag.Bool("version", false, "afficher le numéro de version")
 	flag.Parse()
-	log.SetFlags(log.Ldate | log.Ltime)
-	if *out == "" {
-		if f, err := os.OpenFile(filepath.Join(*dir, "journal.txt"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644); err == nil {
-			log.SetOutput(io.MultiWriter(os.Stdout, f))
-		}
+	if *ver {
+		fmt.Println(version())
+		return
 	}
-	if err := run(*dir, *dbPath, *out, *force, *tries); err != nil {
-		log.Println("ERREUR :", err)
+	if *out == "" {
+		openLog(*dir)
+	}
+	if flag.Arg(0) == "daemon" {
+		daemon(*dir, *dbPath)
+		return
+	}
+	if err := runOnce(*dir, *dbPath, *out, *force, *tries); err != nil {
+		logf("ERREUR : %v", err)
 		os.Exit(1)
 	}
 }
 
-func run(dir, dbPath, out string, force bool, tries int) error {
+func runOnce(dir, dbPath, out string, force bool, tries int) error {
 	c, err := readConfig(filepath.Join(dir, "config.txt"))
 	if err != nil {
 		return err
 	}
-	notes, err := readNotes(dbPath)
-	if err != nil {
-		return fmt.Errorf("lecture des annotations : %w", err)
-	}
-	plain, _ := json.Marshal(map[string]any{"notes": notes})
-	sum := sha256.Sum256(plain)
-	stamp := hex.EncodeToString(sum[:])
-	statePath := filepath.Join(dir, "dernier-envoi.txt")
-	if prev, _ := os.ReadFile(statePath); !force && out == "" && strings.TrimSpace(string(prev)) == stamp {
-		log.Printf("%d annotations, rien de nouveau", len(notes))
-		return nil
-	}
-	plain, _ = json.Marshal(map[string]any{"notes": notes, "updated": time.Now().UTC().Format(time.RFC3339)})
-	box, err := seal(plain, c.Key)
-	if err != nil {
-		return err
-	}
 	if out != "" {
+		notes, err := readNotes(dbPath)
+		if err != nil {
+			return err
+		}
+		payload, _ := json.Marshal(map[string]any{"notes": notes, "updated": time.Now().UTC().Format(time.RFC3339),
+			"kobo": map[string]any{"v": version(), "why": "test"}})
+		box, err := seal(payload, c.Key)
+		if err != nil {
+			return err
+		}
 		return os.WriteFile(out, box, 0644)
 	}
 	if !waitOnline(c.API, tries) {
 		return errors.New("pas de connexion Internet")
 	}
-	if err := push(c, box); err != nil {
-		return err
-	}
-	os.WriteFile(statePath, []byte(stamp), 0644)
-	log.Printf("%d annotations envoyées", len(notes))
-	return nil
+	s := &syncer{c: c, dir: dir, db: dbPath, boot: time.Now()}
+	return s.sync(force, "manuel")
 }

@@ -18,4 +18,5 @@ sync
 if command -v diskutil >/dev/null 2>&1; then diskutil eject "$V" >/dev/null && echo "Kobo éjectée."; fi
 echo ""
 echo "C'est prêt ! Débranche la Kobo : elle affiche une mise à jour et redémarre."
+echo "C'est la dernière fois : ensuite le programme se met à jour tout seul, sans câble."
 echo "Si elle ne le fait pas, éteins-la (bouton marche > Éteindre) puis rallume-la."

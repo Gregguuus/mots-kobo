@@ -18,6 +18,8 @@ class H(BaseHTTPRequestHandler):
         if self.headers.get("Authorization") != "Bearer jeton-de-test": return self.send(401, {"message": "Bad credentials"})
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         p = self.path.split("?")[0]
+        flag = os.path.join(out, "fail409")
+        if os.path.exists(flag): os.remove(flag); return self.send(409, {"message": "is at X but expected Y"})
         if p in files and body.get("sha") != files[p]: return self.send(409, {"message": "sha manquant"})
         data = base64.b64decode(body["content"]); files[p] = hashlib.sha1(data).hexdigest()
         open(os.path.join(out, os.path.basename(p)), "wb").write(data); self.send(201, {"content": {"sha": files[p]}})

@@ -20,6 +20,9 @@ rows = [
  ("5", books[1][0], "Je me suis senti prêt à tout revivre.", "", "2026-11-14T20:12:00Z", 0.98, "false", "highlight", 3),
  ("6", books[1][0], "Passage supprimé", "", "2026-11-14T20:13:00Z", 0.5, "true", "highlight", 0),
  ("7", books[2][0], "Ils auraient aimé être riches. Ils croyaient qu'ils auraient su l'être.", "Toute la thèse du roman.", "2026-11-20T19:00:00Z", 0.12, "false", "note", 0),
+ ("8", books[1][0], "assoupi", "", "2026-11-14T20:20:00Z", 0.40, "false", "highlight", 1),
+ ("9", books[1][0], "la torpeur", "", "2026-11-14T20:21:00Z", 0.41, "false", "highlight", 2),
+ ("10", books[1][0], "Tom &amp; Jerry 5\xa0%", "", "2026-11-14T20:22:00Z", 0.42, "false", "highlight", 3),
 ]
 chap = {"1": "!ch12", "2": "!ch1"}  # le passage 2 est au chapitre 1 (90 %), le 1 au chapitre 12 (10 %)
 rows[0] = rows[0][:5] + (0.10,) + rows[0][6:]; rows[1] = rows[1][:5] + (0.90,) + rows[1][6:]
